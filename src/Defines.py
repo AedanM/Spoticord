@@ -4,17 +4,19 @@ from pathlib import Path
 
 import discord
 import spotipy
+from discord.ext import commands
 from spotipy.oauth2 import SpotifyOAuth
 from yaml import Loader, load
 
 CONFIG_PATH: Path = Path("data/conf.yml" if len(sys.argv) < 2 else sys.argv[1])
 USER_DATA_FILE: Path = Path("data/user_data.csv")
+UNAME_STAND_IN = "UNAME_STANDIN"
 
 CONFIG: dict = load(CONFIG_PATH.read_text(encoding="utf-8"), Loader)
 
 DISCORD_INTENTS: discord.Intents = discord.Intents.default()
 DISCORD_INTENTS.message_content = True
-DISCORD_CLIENT: discord.Client = discord.Client(intents=DISCORD_INTENTS)
+DISCORD_CLIENT: discord.Client = commands.Bot(command_prefix="!*", intents=DISCORD_INTENTS)
 
 SPOTIFY_SCOPE = "playlist-modify-public"
 SPOTIFY_CLIENT = spotipy.Spotify(
@@ -32,3 +34,5 @@ class RequestResults(StrEnum):
     Failed = "Failed"
     Repeat = "Repeat"
     BadVibes = "Failed Vibes"
+    RegexFail = "Failed Regex"
+    WrongMarket = "Wrong Market"
