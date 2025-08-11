@@ -1,20 +1,36 @@
-import asyncio
+import os
 import re
+import subprocess
 import sys
+from pathlib import Path
 from typing import Callable
 
-from Defines import CONFIG, CONFIG_PATH
-from yaml import Dumper, dump
+from Defines import COMMAND_KEY, CONFIG, MEMORY, USER_DATA_FILE, SaveConfig, SaveMemory
+from discord import File
 
-CONFIG_LOCK = asyncio.Lock()
 COMMANDS: dict[str, Callable] = {}
 
 
-async def OnTheList(message, isTesting):
+async def SendMessage(response, message, reply: bool = False, useChannel: bool = False):
+    if useChannel:
+        await message.send(response)
+        id = message.id
+    else:
+        await (message.reply(response) if reply else message.channel.send(response))
+        id = message.channel.id
+
+    if MEMORY["LastChannel"] != id:
+        MEMORY["LastChannel"] = str(id)
+        await SaveMemory()
+
+
+async def OnTheList(message) -> None:
     for artistID in re.findall(r"https://open.spotify.com/artist/([a-zA-Z0-9]+)", message.content):
+        defaulted: bool = False
         if artistID in CONFIG["Vibes"]:
-            await message.channel.send(
-                f"{artistID} -> Already in the list rated at {CONFIG["Vibes"][artistID]}"
+            await SendMessage(
+                f"{artistID} -> Already in the list rated at {CONFIG["Vibes"][artistID]}",
+                message,
             )
         else:
             try:
@@ -26,33 +42,67 @@ async def OnTheList(message, isTesting):
                 else:
                     raise ValueError
             except ValueError:
-                await message.channel.send(
-                    f"Could not determine new rating for {artistID}, defaulting to 1.0"
-                )
+                defaulted = True
                 rating = 1.0
             CONFIG["Vibes"][artistID] = rating
-            await message.channel.send(f"{artistID} logged at {rating}")
-            async with CONFIG_LOCK:
-                dump(CONFIG, CONFIG_PATH.open(mode="w", encoding="utf-8"), Dumper=Dumper)
+            await SendMessage(
+                f"{artistID} logged at {rating}{" (defaulted)" if defaulted else ''}",
+                message,
+            )
+            await SaveConfig()
 
 
-async def Refresh(message, isTesting):
-    await message.channel.send("Resetting myself 🔫")
-    sys.exit()
+async def Refresh(message) -> None:
+    await SendMessage("Resetting myself 🔫", message)
+    sys.exit(0)
 
 
-async def ListCommands(message, isTesting):
-    commands = sorted([str(x) for x in COMMANDS.keys()])
-    await message.channel.send(f"Current Commands:\n\t-> {"\n\t-> ".join(commands)}")
+async def Update(message) -> None:
+    os.chdir(Path(__file__).parent)
+    results = subprocess.check_output(["git", "pull", "origin", "main"])
+    await SendMessage(f"Pulled from Git: {results}", message)
+    await Refresh(message)
 
 
-COMMANDS = {"!onTheList": OnTheList, "!refresh": Refresh, "!commands": ListCommands}
+async def ListCommands(message) -> None:
+    commands = sorted([str(x) for x in COMMANDS])
+    await SendMessage(f"Current Commands:\n\t-> {"\n\t-> ".join(commands)}", message)
 
 
-async def HandleCommands(message, isTesting) -> bool:
+async def PreviewPoke(message):
+    await SendMessage(f"Poke should occur around {MEMORY["PokeTime"]}", message)
+
+
+async def UserData(message):
+    await SendMessage("Here is the user data file", message, True)
+    await message.reply(file=File(USER_DATA_FILE))
+
+
+async def Blame(message):
+    return
+    # CURRENT_USER_DATA.rows_by_key(key="track", named=True)[]
+
+
+COMMANDS = {
+    "onTheList": OnTheList,
+    "refresh": Refresh,
+    "commands": ListCommands,
+    "update": Update,
+    "previewPoke": PreviewPoke,
+    "userData": UserData,
+    "blame": Blame,
+}
+
+
+async def HandleCommands(message) -> bool:
     handled = False
-    for command in COMMANDS:
-        if re.match(command, message.content):
-            await COMMANDS[command](message, isTesting)
+    for key, command in COMMANDS.items():
+        if re.match(COMMAND_KEY + key, message.content):
+            await command(message)
             handled = True
+    if not handled:
+        await SendMessage(
+            f"I think that was supposed to be a command, but none I recognized",
+            message,
+        )
     return handled
