@@ -1,3 +1,4 @@
+import asyncio
 import datetime as dt
 import math
 import random
@@ -6,11 +7,9 @@ import re
 from Commands import HandleCommands, SendMessage
 from DataLogging import GetResponse, LogUserData
 from Defines import CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
-from discord.ext import tasks
 from SpotifyAccess import AddToPlaylist, ForceTrack
 
 
-@tasks.loop(seconds=60)
 async def Poke() -> None:
     today: dt.datetime = dt.datetime.today()
     now = await TimeToSec(today.time())
@@ -84,5 +83,10 @@ async def MessageHandler(message):
             )
 
 
+async def Main():
+    asyncio.create_task(Poke())
+
+
 if __name__ == "__main__":
+    asyncio.run(Main())
     DISCORD_CLIENT.run(CONFIG["DiscordToken"])
