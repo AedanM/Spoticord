@@ -18,6 +18,7 @@ MEMORY_LOCK: asyncio.Lock = asyncio.Lock()
 USER_DATA_FILE_LOCK: asyncio.Lock = asyncio.Lock()
 
 UNAME_STAND_IN: str = "UNAME_STANDIN"
+COMMAND_KEY = "!"
 
 MEMORY: dict = load(MEMORY_FILE.read_text(encoding="utf-8"), Loader)
 CONFIG: dict = load(CONFIG_FILE.read_text(encoding="utf-8"), Loader)

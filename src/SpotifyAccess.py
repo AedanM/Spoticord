@@ -25,7 +25,6 @@ def IsInRegion(regions: list[str]) -> bool:
 
 
 def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple[Status, tuple]:
-    logInfo = (trackId, "", "", "")
     result = Status.Default
 
     if IsARepeat(trackId):
