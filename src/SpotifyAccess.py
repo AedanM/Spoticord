@@ -1,58 +1,81 @@
 import random
 
-import polars as pl
 import spotipy
 from DataLogging import CURRENT_USER_DATA
-from Defines import CONFIG, SPOTIFY_CLIENT, UNAME_STAND_IN, RequestResults
+from Defines import CONFIG, SPOTIFY_CLIENT, Status
 
 
-def AddSongToPlaylist(
-    trackId: str, playlistId: str, isTesting: bool
-) -> tuple[RequestResults, str, tuple]:
-    trackInfo = (trackId, "", "", "")
+# todo : add function to let you know for milestones
+def CheckPlaylistLength(): ...
+
+
+def IsARepeat(trackId: str) -> bool:
     if trackId in CURRENT_USER_DATA["track"]:
-
         for r in CURRENT_USER_DATA.rows_by_key(key="track", named=True)[trackId]:
-            if r["result"] == str(RequestResults.Added):
-                return (
-                    RequestResults.Repeat,
-                    (
-                        "Already in the playlist, @everyone mock them"
-                        if not isTesting
-                        else "Try again bucko, already added"
-                    ),
-                    trackInfo,
-                )
+            if r["result"] == str(Status.Added):
+                return True
+    return False
+
+
+def IsInRegion(regions: list[str]) -> bool:
+    # todo re-implement region codes
+    # if regions and "GB" not in regions:
+    #
+    return True
+
+
+def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple[Status, tuple]:
+    logInfo = (trackId, "", "", "")
+    result = Status.Default
+
+    if IsARepeat(trackId):
+        result = Status.Repeat
+
+    addChance, title, artist, uri, regions = GetTrackInformation(trackId)
+
+    if result == Status.Default and not IsInRegion(regions):
+        result = Status.WrongMarket
+    if result == Status.Default and random.random() < addChance:
+        result = Status.BadVibes
+
+    if result == Status.Default:
+        if exception := AddTrack(trackId, playlistId, isTesting):
+            print(exception)
+            result = Status.Failed
+        else:
+            result = Status.Added
+
+    return (result, (trackId, title, artist, uri))
+
+
+def AddTrack(trackId, playlistId, isTesting) -> spotipy.exceptions.SpotifyException | None:
     try:
-        addChance, title, artist, uri, regions = ArtistVibeCheck(trackId)
-        trackInfo = (trackId, title, artist, uri)
-        if "GB" not in regions:
-            return (RequestResults.WrongMarket, "Track not available in the UK, sorry", trackInfo)
-        if random.random() < addChance:
-            return (
-                RequestResults.BadVibes,
-                f"@{UNAME_STAND_IN} You failed the Pedo Check. Reconsider your choices",
-                trackInfo,
-            )
         if not isTesting:
             SPOTIFY_CLIENT.playlist_add_items(playlistId, [trackId])
-        return (RequestResults.Added, "", trackInfo)
     except spotipy.exceptions.SpotifyException as e:
-        return (
-            RequestResults.Failed,
-            f"You broke spotify with that id ({trackId}). Thanks numbnuts",
-            (trackId, e, "", ""),
-        )
+        return e
 
 
-def ArtistVibeCheck(trackId) -> tuple:
+def ForceTrack(trackId, playlistId) -> tuple[Status, tuple]:
+    _addChance, title, artist, uri, _regions = GetTrackInformation(trackId)
+
+    if _exception := AddTrack(trackId, playlistId, False):
+        title = "ERROR"
+        artist = "ERROR"
+
+    return (Status.ForceAdd, (trackId, title, artist, uri))
+
+
+def GetTrackInformation(trackId) -> tuple:
     r = SPOTIFY_CLIENT.track(trackId)
     vibe = 0.0
-    mainArtist = r["artists"][0]["name"]
-    title = r["name"]
-    uri = r["uri"]
-    regions = r["available_markets"]
     for artist in r["artists"]:
         v = CONFIG["Vibes"].get(artist["id"], 0.0)
         vibe = max(v, vibe)
-    return (vibe, title, mainArtist, uri, regions)
+    return (
+        vibe,
+        r["name"],
+        r["artists"][0]["name"],
+        r["uri"],
+        r["available_markets"],
+    )

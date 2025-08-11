@@ -1,20 +1,30 @@
-import asyncio
+import os
 import re
+import subprocess
 import sys
+from pathlib import Path
 from typing import Callable
 
-from Defines import CONFIG, CONFIG_PATH
-from yaml import Dumper, dump
+from DataLogging import SaveConfig
+from Defines import CONFIG
 
-CONFIG_LOCK = asyncio.Lock()
 COMMANDS: dict[str, Callable] = {}
 
 
-async def OnTheList(message, isTesting):
+async def SendMessage(message, channel):
+    await channel.send(message)
+    if CONFIG["LastChannel"] != channel.id:
+        CONFIG["LastChannel"] = channel.id
+        await SaveConfig()
+
+
+async def OnTheList(message, isTesting: bool) -> None:
     for artistID in re.findall(r"https://open.spotify.com/artist/([a-zA-Z0-9]+)", message.content):
+        defaulted: bool = False
         if artistID in CONFIG["Vibes"]:
-            await message.channel.send(
-                f"{artistID} -> Already in the list rated at {CONFIG["Vibes"][artistID]}"
+            await SendMessage(
+                f"{artistID} -> Already in the list rated at {CONFIG["Vibes"][artistID]}",
+                message.channel,
             )
         else:
             try:
@@ -26,33 +36,51 @@ async def OnTheList(message, isTesting):
                 else:
                     raise ValueError
             except ValueError:
-                await message.channel.send(
-                    f"Could not determine new rating for {artistID}, defaulting to 1.0"
-                )
+                defaulted = True
                 rating = 1.0
             CONFIG["Vibes"][artistID] = rating
-            await message.channel.send(f"{artistID} logged at {rating}")
-            async with CONFIG_LOCK:
-                dump(CONFIG, CONFIG_PATH.open(mode="w", encoding="utf-8"), Dumper=Dumper)
+            await SendMessage(
+                f"{artistID} logged at {rating}{" (defaulted)" if defaulted else ''}",
+                message.channel,
+            )
+            if not isTesting:
+                await SaveConfig()
 
 
-async def Refresh(message, isTesting):
-    await message.channel.send("Resetting myself 🔫")
-    sys.exit()
+async def Refresh(message, _isTesting: bool) -> None:
+    await SendMessage("Resetting myself 🔫", message.channel)
+    sys.exit(0)
 
 
-async def ListCommands(message, isTesting):
-    commands = sorted([str(x) for x in COMMANDS.keys()])
-    await message.channel.send(f"Current Commands:\n\t-> {"\n\t-> ".join(commands)}")
+async def Update(message, isTesting: bool) -> None:
+    os.chdir(Path(__file__).parent)
+    results = subprocess.check_output(["git", "pull", "origin", "main"])
+    await SendMessage(f"Pulled from Git: {results}", message.channel)
+    await Refresh(message, isTesting)
 
 
-COMMANDS = {"!onTheList": OnTheList, "!refresh": Refresh, "!commands": ListCommands}
+async def ListCommands(message, _isTesting: bool) -> None:
+    commands = sorted([str(x) for x in COMMANDS])
+    await SendMessage(f"Current Commands:\n\t-> {"\n\t-> ".join(commands)}", message.channel)
 
 
-async def HandleCommands(message, isTesting) -> bool:
+async def PreviewPoke(message, _isTesting: bool):
+    await SendMessage(f"Poke should occur around {CONFIG["PokeTime"]}", message.channel)
+
+
+COMMANDS = {
+    "!onTheList": OnTheList,
+    "!refresh": Refresh,
+    "!commands": ListCommands,
+    "!update": Update,
+    "!previewPoke": PreviewPoke,
+}
+
+
+async def HandleCommands(message, isTesting: bool) -> bool:
     handled = False
-    for command in COMMANDS:
-        if re.match(command, message.content):
-            await COMMANDS[command](message, isTesting)
+    for key, command in COMMANDS.items():
+        if re.match(key, message.content):
+            await command(message, isTesting)
             handled = True
     return handled
