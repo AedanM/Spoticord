@@ -1,12 +1,11 @@
-import asyncio
 import datetime as dt
 import math
 import random
 import re
 
 from Commands import HandleCommands, SendMessage
-from DataLogging import GetResponse, LogUserData, SaveConfig
-from Defines import CONFIG, DISCORD_CLIENT, Status
+from DataLogging import GetResponse, LogUserData
+from Defines import CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
 from discord.ext import tasks
 from SpotifyAccess import AddToPlaylist, ForceTrack
 
@@ -14,11 +13,11 @@ from SpotifyAccess import AddToPlaylist, ForceTrack
 @tasks.loop(seconds=60)
 async def Poke() -> None:
     today: dt.datetime = dt.datetime.today()
-    current = seconds = (today.hour * 60 + today.minute) * 60 + today.second
-    if CONFIG["PokeTime"].date() != today.date():
-        CONFIG["Poked"] = False
+    now = await TimeToSec(today.time())
+    if MEMORY["PokeTime"].date() != today.date():
+        MEMORY["Poked"] = False
         seconds = 0
-        while seconds < current:
+        while seconds < now:
             startSecs, endSecs = random.choice(CONFIG["PokeTimes"][dt.datetime.now().weekday()])
             seconds = random.randint(startSecs, endSecs)
             newTime = dt.time(
@@ -26,24 +25,25 @@ async def Poke() -> None:
                 minute=math.floor(seconds / 60) % 60,
                 second=seconds % 60,
             )
-            CONFIG["PokeTime"] = dt.datetime.combine(today.date(), newTime)
-        await SaveConfig()
-    elif CONFIG["Poked"] == False and CONFIG["PokeTime"].timestamp() < today.timestamp():
+            MEMORY["PokeTime"] = dt.datetime.combine(today.date(), newTime)
+        await SaveMemory()
+    elif MEMORY["Poked"] == False and await TimeToSec(MEMORY["PokeTime"].time()) < now:
         for channel in CONFIG["PokeChannels"]:
-            if c := DISCORD_CLIENT.get_channel(channel):
+            if c := DISCORD_CLIENT.get_channel(int(channel)):
                 await SendMessage("🎶 What is @everyone listening to? 🎶", c)
-                CONFIG["Poked"] = True
-                await SaveConfig()
+                MEMORY["Poked"] = True
+                await SaveMemory()
             else:
                 print("Can't find channel for poke")
 
 
 @DISCORD_CLIENT.listen("on_ready")
 async def ReAnnounce():
-    if channel := DISCORD_CLIENT.get_channel(CONFIG["LastChannel"]):
+    if channel := DISCORD_CLIENT.get_channel(MEMORY["LastChannel"]):
         await SendMessage("I'm back 😎", channel)
     else:
         print("Can't find channel for announce")
+    await Poke()
 
 
 @DISCORD_CLIENT.listen("on_message")

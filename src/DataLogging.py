@@ -1,17 +1,7 @@
 from datetime import datetime
 
 import polars as pd
-from Defines import (
-    CONFIG,
-    CONFIG_FILE,
-    CONFIG_LOCK,
-    CURRENT_USER_DATA,
-    UNAME_STAND_IN,
-    USER_DATA_FILE,
-    USER_DATA_FILE_LOCK,
-    Status,
-)
-from yaml import Dumper, dump
+from Defines import CURRENT_USER_DATA, UNAME_STAND_IN, USER_DATA_FILE, USER_DATA_FILE_LOCK, Status
 
 
 async def LogUserData(
@@ -20,7 +10,7 @@ async def LogUserData(
     status: Status,
     isTesting,
 ) -> None:
-    message = f"\n{datetime.now()},{user},{status},{','.join(trackInfo)}"
+    message = f"\n{datetime.now()},{user},{status},{','.join([f'"{x}"' for x in trackInfo])}"
     if isTesting:
         print(message)
     else:
@@ -53,9 +43,3 @@ def GetResponse(result: Status, username: str, isTesting: bool) -> str:
         case Status.ForceAdd:
             s = "This was forcefully added, I hope you know what you're doing..."
     return s.replace(UNAME_STAND_IN, username)
-
-
-async def SaveConfig():
-    async with CONFIG_LOCK:
-        with CONFIG_FILE.open(encoding="utf-8", mode="w") as fp:
-            dump(CONFIG, fp, Dumper=Dumper)

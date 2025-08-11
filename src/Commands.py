@@ -5,17 +5,17 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from DataLogging import SaveConfig
-from Defines import CONFIG
+from Defines import CONFIG, MEMORY, USER_DATA_FILE, SaveConfig, SaveMemory
+from discord import File
 
 COMMANDS: dict[str, Callable] = {}
 
 
 async def SendMessage(message, channel):
     await channel.send(message)
-    if CONFIG["LastChannel"] != channel.id:
-        CONFIG["LastChannel"] = channel.id
-        await SaveConfig()
+    if MEMORY["LastChannel"] != channel.id:
+        MEMORY["LastChannel"] = channel.id
+        await SaveMemory()
 
 
 async def OnTheList(message, isTesting: bool) -> None:
@@ -65,7 +65,12 @@ async def ListCommands(message, _isTesting: bool) -> None:
 
 
 async def PreviewPoke(message, _isTesting: bool):
-    await SendMessage(f"Poke should occur around {CONFIG["PokeTime"]}", message.channel)
+    await SendMessage(f"Poke should occur around {MEMORY["PokeTime"]}", message.channel)
+
+
+async def UserData(message, _isTesting: bool):
+    await SendMessage("Here is the user data file", message.channel)
+    await message.channel.send(file=File(USER_DATA_FILE))
 
 
 COMMANDS = {
@@ -74,6 +79,7 @@ COMMANDS = {
     "!commands": ListCommands,
     "!update": Update,
     "!previewPoke": PreviewPoke,
+    "!userData": UserData,
 }
 
 
