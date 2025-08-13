@@ -3,21 +3,40 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from pprint import pp
 from typing import Callable
 
-from Defines import COMMAND_KEY, CONFIG, MEMORY, USER_DATA_FILE, SaveConfig, SaveMemory
+from Defines import (
+    COMMAND_KEY,
+    CONFIG,
+    MEMORY,
+    USER_DATA_FILE,
+    GetUserData,
+    SaveConfig,
+    SaveMemory,
+    UserDataEntry,
+)
 from discord import File
+from SpotifyAccess import GetAllTracks, GetFullInfo
 
 COMMANDS: dict[str, Callable] = {}
 
 
-async def SendMessage(response, message, reply: bool = False, useChannel: bool = False):
+async def NotifyPlaylistLength(response):
+    playlistLen = len([x for x in await GetUserData() if x.EntryStatus.WasSuccessful])
+    if playlistLen % CONFIG["UpdateInterval"] == 0:
+        await SendMessage(f"This was song #{playlistLen} 🙌", response, reply=True)
+
+    return
+
+
+async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
     if useChannel:
-        await message.send(response)
-        id = message.id
+        await contextObj.send(output)
+        id = contextObj.id
     else:
-        await (message.reply(response) if reply else message.channel.send(response))
-        id = message.channel.id
+        await (contextObj.reply(output) if reply else contextObj.channel.send(output))
+        id = contextObj.channel.id
 
     if MEMORY["LastChannel"] != id:
         MEMORY["LastChannel"] = str(id)
@@ -83,6 +102,56 @@ async def Blame(message):
     # CURRENT_USER_DATA.rows_by_key(key="track", named=True)[]
 
 
+async def UserStats(message):
+    data: list[UserDataEntry] = await GetUserData()
+    addedSongs = [x for x in data if x.EntryStatus.WasSuccessful]
+
+    if "posters" in message.content:
+        addFreq = {
+            uname: len([entry for entry in addedSongs if entry.User == uname])
+            for uname in set([x.User for x in data])
+        }
+        addFreq = sorted(list(addFreq.items()), key=lambda x: x[1], reverse=True)
+        outStr = "Top Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
+        await SendMessage(outStr, message, reply=True)
+    if "artists" in message.content:
+        addFreq = {
+            artist: len([entry for entry in addedSongs if entry.Artist == artist])
+            for artist in {x.Artist for x in data}
+        }
+        addFreq = sorted(list(addFreq.items()), key=lambda x: x[1], reverse=True)
+        addFreq = [x for x in addFreq if x[1] > 1]
+        outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
+        await SendMessage(outStr, message, reply=True)
+    if "genres" in message.content:
+        genres = []
+        await SendMessage("Loading genres (this may take a minute)", message, reply=True)
+        for track in addedSongs:
+            genres += GetFullInfo(track.TrackId)["artist"]["genres"]
+        genreFreq = {x: genres.count(x) for x in set(genres)}
+        genreFreq = [
+            x for x in sorted(list(genreFreq.items()), key=lambda x: x[1], reverse=True) if x[1] > 1
+        ]
+        outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
+        await SendMessage(outStr, message, reply=True)
+
+
+async def CheckTracks(message):
+    data = await GetUserData()
+    playlistTracks = []
+    found = 0
+    if playlistID := CONFIG["Channel Maps"].get(message.channel.name, None):
+        playlistTracks = GetAllTracks(playlistID)
+    for track in playlistTracks:
+        if len([x for x in data if x.TrackId == track["track"]["id"]]) < 1:
+            await SendMessage(
+                f"Error, no matching data for {track["track"]["name"]} {track["track"]["artists"][0]["name"]} ({track["track"]["id"]})",
+                message,
+            )
+            found += 1
+    await SendMessage(f"{found} Errors Found", message)
+
+
 COMMANDS = {
     "onTheList": OnTheList,
     "refresh": Refresh,
@@ -91,6 +160,8 @@ COMMANDS = {
     "previewPoke": PreviewPoke,
     "userData": UserData,
     "blame": Blame,
+    "stats": UserStats,
+    "check": CheckTracks,
 }
 
 

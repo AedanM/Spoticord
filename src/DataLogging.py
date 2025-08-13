@@ -1,24 +1,22 @@
+import asyncio
+import csv
 from datetime import datetime
 
-import polars as pd
-from Defines import CURRENT_USER_DATA, UNAME_STAND_IN, USER_DATA_FILE, USER_DATA_FILE_LOCK, Status
+from Defines import UNAME_STAND_IN, AppendUserData, LoadUserData, Status
 
 
 async def LogUserData(
-    trackInfo: tuple[str, str, str],
+    trackInfo: tuple[str, str, str, str],
     user: str,
     status: Status,
     isTesting,
 ) -> None:
     message = f"\n{datetime.now()},{user},{status},{','.join([f'"{x}"' for x in trackInfo])}"
-    if isTesting:
+    if isTesting and status != Status.ForceAdd:
         print(message)
     else:
-        async with USER_DATA_FILE_LOCK:
-            with USER_DATA_FILE.open(mode="a", encoding="utf-8") as fp:
-                fp.write(message)
-                # todo: make this more robust and less slow
-                CURRENT_USER_DATA = pd.read_csv(USER_DATA_FILE)
+        AppendUserData(message)
+        await LoadUserData()
 
 
 def GetResponse(result: Status, username: str, isTesting: bool) -> str:
