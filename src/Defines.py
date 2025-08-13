@@ -1,14 +1,74 @@
 import asyncio
+import csv
+import datetime
 import sys
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
 import discord
-import polars as pd
 import spotipy
 from discord.ext import commands
 from spotipy.oauth2 import SpotifyOAuth
 from yaml import Dumper, Loader, dump, load
+
+
+class Status(StrEnum):
+    Default = ""
+    Added = "Added"
+    Failed = "Failed"
+    Repeat = "Repeat"
+    BadVibes = "Failed Vibes"
+    RegexFail = "Failed Regex"
+    WrongMarket = "Wrong Market"
+    ForceAdd = "Forcefully Added"
+
+    @property
+    def WasSuccessful(self) -> bool:
+        return self in [Status.Added, Status.ForceAdd]
+
+
+@dataclass
+class UserDataEntry:
+    Artist: str
+    EntryStatus: Status
+    TimeAdded: datetime.datetime
+    TrackId: str
+    TrackName: str
+    URI: str
+    User: str
+
+    @classmethod
+    def FromList(cls, dataFields) -> "UserDataEntry":
+        return cls(
+            Artist=dataFields[5],
+            EntryStatus=Status(dataFields[2]),
+            TimeAdded=datetime.datetime.fromisoformat(dataFields[0]),
+            TrackId=dataFields[3],
+            TrackName=dataFields[4],
+            URI=dataFields[6],
+            User=dataFields[1],
+        )
+
+    @classmethod
+    def FromString(cls, s) -> "UserDataEntry":
+        dataFields = [x.replace('"', "").strip() for x in s.split(",")]
+        return cls.FromList(dataFields)
+
+    @property
+    def OutputString(self):
+        return ",".join(
+            [
+                str(self.TimeAdded),
+                self.User,
+                str(self.EntryStatus),
+                f'"{self.TrackId}"',
+                f'"{self.TrackName}"',
+                f'"{self.Artist}"',
+                f'"{self.URI}"',
+            ]
+        )
+
 
 CONFIG_FILE: Path = Path("data/conf.yml" if len(sys.argv) < 2 else sys.argv[1])
 MEMORY_FILE: Path = Path("data/memory.yml" if len(sys.argv) < 3 else sys.argv[2])
@@ -22,7 +82,7 @@ COMMAND_KEY = "!"
 
 MEMORY: dict = load(MEMORY_FILE.read_text(encoding="utf-8"), Loader)
 CONFIG: dict = load(CONFIG_FILE.read_text(encoding="utf-8"), Loader)
-CURRENT_USER_DATA: pd.DataFrame = pd.read_csv(USER_DATA_FILE)
+USER_DATA: list[UserDataEntry] = []
 
 DISCORD_INTENTS: discord.Intents = discord.Intents.default()
 DISCORD_INTENTS.message_content = True
@@ -39,17 +99,6 @@ SPOTIFY_CLIENT: spotipy.Spotify = spotipy.Spotify(
 )
 
 
-class Status(StrEnum):
-    Default = ""
-    Added = "Added"
-    Failed = "Failed"
-    Repeat = "Repeat"
-    BadVibes = "Failed Vibes"
-    RegexFail = "Failed Regex"
-    WrongMarket = "Wrong Market"
-    ForceAdd = "Forcefully Added"
-
-
 async def SaveConfig():
     async with CONFIG_LOCK:
         with CONFIG_FILE.open(encoding="utf-8", mode="w") as fp:
@@ -64,3 +113,26 @@ async def SaveMemory():
 
 async def TimeToSec(time) -> int:
     return (time.hour * 60 + time.minute) * 60 + time.second
+
+
+async def GetUserData() -> list[UserDataEntry]:
+    if USER_DATA == []:
+        await LoadUserData()
+    return USER_DATA
+
+
+async def LoadUserData():
+    global USER_DATA
+    async with USER_DATA_FILE_LOCK:
+        with USER_DATA_FILE.open(encoding="utf-8") as csvFile:
+            USER_DATA = [
+                UserDataEntry.FromList(x)
+                for idx, x in enumerate(csv.reader(csvFile, delimiter=",", quotechar='"'))
+                if idx != 0 and x != []
+            ]
+
+
+def AppendUserData(data: str):
+    userEntry = UserDataEntry.FromString(data)
+    with USER_DATA_FILE.open(mode="a", encoding="utf-8") as fp:
+        fp.write("\n" + userEntry.OutputString)

@@ -4,7 +4,7 @@ import math
 import random
 import re
 
-from Commands import HandleCommands, SendMessage
+from Commands import HandleCommands, NotifyPlaylistLength, SendMessage
 from DataLogging import GetResponse, LogUserData
 from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
 from discord.ext import tasks
@@ -40,7 +40,6 @@ async def Poke() -> None:
 
 @tasks.loop(seconds=600)
 async def SpecialTimes() -> None:
-    print("Special Times Run")
     today = dt.datetime.now()
     for event in CONFIG["SpecialTimes"]:
         if today.weekday() != event["Day"]:
@@ -87,9 +86,10 @@ async def MessageHandler(message):
             status, trackInfo = (
                 ForceTrack(trackID, playlistID)
                 if "!force" in message.content[:7]
-                else AddToPlaylist(trackID, playlistID, isTesting)
+                else await AddToPlaylist(trackID, playlistID, isTesting)
             )
-
+            if status.WasSuccessful:
+                await NotifyPlaylistLength(message)
             if response := GetResponse(status, username, isTesting):
                 await SendMessage(response, message, reply=True)
 
@@ -102,7 +102,7 @@ async def MessageHandler(message):
                 await SendMessage(response, message, reply=True)
 
             await LogUserData(
-                (message.content, "", ""),
+                (message.content, "", "", ""),
                 username,
                 Status.RegexFail,
                 isTesting,

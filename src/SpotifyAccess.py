@@ -1,20 +1,23 @@
 import random
 
 import spotipy
-from DataLogging import CURRENT_USER_DATA
-from Defines import CONFIG, SPOTIFY_CLIENT, Status
+from Defines import CONFIG, SPOTIFY_CLIENT, GetUserData, Status
 
 
-# todo : add function to let you know for milestones
-def CheckPlaylistLength(): ...
+def GetAllTracks(playlistId):
+    results = SPOTIFY_CLIENT.playlist_tracks(playlistId)
+    tracks = results["items"]
+    while results["next"]:
+        results = SPOTIFY_CLIENT.next(results)
+        tracks.extend(results["items"])
+    return tracks
 
 
-def IsARepeat(trackId: str) -> bool:
-    if trackId in CURRENT_USER_DATA["track"]:
-        for r in CURRENT_USER_DATA.rows_by_key(key="track", named=True)[trackId]:
-            if r["result"] == str(Status.Added):
-                return True
-    return False
+async def IsARepeat(trackId: str) -> bool:
+    matches = [
+        x for x in await GetUserData() if x.TrackId == trackId and x.EntryStatus.WasSuccessful
+    ]
+    return len(matches) > 0
 
 
 def IsInRegion(regions: list[str]) -> bool:
@@ -24,10 +27,10 @@ def IsInRegion(regions: list[str]) -> bool:
     return True
 
 
-def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple[Status, tuple]:
+async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple[Status, tuple]:
     result = Status.Default
 
-    if IsARepeat(trackId):
+    if await IsARepeat(trackId):
         result = Status.Repeat
 
     addChance, title, artist, uri, regions = GetTrackInformation(trackId)
@@ -78,3 +81,9 @@ def GetTrackInformation(trackId) -> tuple:
         r["uri"],
         r["available_markets"],
     )
+
+
+def GetFullInfo(trackId: str, skipArtist: bool = False) -> dict[str, dict]:
+    r = SPOTIFY_CLIENT.track(trackId)
+    topArtist = SPOTIFY_CLIENT.artist(r["artists"][0]["id"]) if not skipArtist else {}
+    return {"track": r, "artist": topArtist}
