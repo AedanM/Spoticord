@@ -71,7 +71,7 @@ class UserDataEntry:
 
     @property
     def TrackInfo(self) -> str:
-        return f"{self.TrackInfo} - {self.Artist}"
+        return f"{self.TrackName} - {self.Artist}"
 
     def __str__(self) -> str:
         return f"{self.TrackInfo} {self.EntryStatus} by {self.User}"
