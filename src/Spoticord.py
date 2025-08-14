@@ -112,9 +112,5 @@ async def MessageHandler(message):
             )
 
 
-async def main():
-    DISCORD_CLIENT.run(CONFIG["DiscordToken"])
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    DISCORD_CLIENT.run(CONFIG["DiscordToken"])
