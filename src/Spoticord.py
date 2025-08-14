@@ -1,4 +1,3 @@
-import asyncio
 import datetime as dt
 import math
 import random
@@ -28,7 +27,7 @@ async def Poke() -> None:
             )
             MEMORY["PokeTime"] = dt.datetime.combine(today.date(), newTime)
         await SaveMemory()
-    elif MEMORY["Poked"] == False and await TimeToSec(MEMORY["PokeTime"].time()) < now:
+    elif not MEMORY["Poked"] and await TimeToSec(MEMORY["PokeTime"].time()) < now:
         for channel in CONFIG["PokeChannels"]:
             if c := DISCORD_CLIENT.get_channel(int(channel)):
                 await SendMessage("🎶 What is @everyone listening to? 🎶", c, useChannel=True)
@@ -111,4 +110,5 @@ async def MessageHandler(message):
 
 
 if __name__ == "__main__":
+
     DISCORD_CLIENT.run(CONFIG["DiscordToken"])

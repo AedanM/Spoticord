@@ -32,13 +32,13 @@ async def NotifyPlaylistLength(response):
 async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
     if useChannel:
         await contextObj.send(output)
-        id = contextObj.id
+        channelId = contextObj.id
     else:
         await (contextObj.reply(output) if reply else contextObj.channel.send(output))
-        id = contextObj.channel.id
+        channelId = contextObj.channel.id
 
-    if MEMORY["LastChannel"] != id:
-        MEMORY["LastChannel"] = str(id)
+    if MEMORY["LastChannel"] != channelId:
+        MEMORY["LastChannel"] = str(channelId)
         await SaveMemory()
 
 
@@ -101,19 +101,37 @@ async def Blame(message):
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
-            await SendMessage(
-                f"{entry.TrackName} - {entry.Artist} was added by {entry.User}", message, reply=True
-            )
+            await SendMessage(f"{entry}", message, reply=True)
 
 
 async def UserStats(message):
     data: list[UserDataEntry] = await GetUserData()
-    addedSongs = [x for x in data if x.EntryStatus.WasSuccessful]
+    addedSongs: list[UserDataEntry] = [x for x in data if x.EntryStatus.WasSuccessful]
+    if "duration" in message.content:
+        timed: dict[UserDataEntry, int] = {}
+
+        for song in addedSongs:
+            info = GetFullInfo(song.TrackId, skipArtist=True)
+            timed[song] = info["track"]["duration_ms"]
+
+        sortedTimes: list[tuple[UserDataEntry, int]] = sorted(
+            list(timed.items()), key=lambda x: x[1]
+        )
+
+        shortest = "Shortest:\n\t- " + "\t- ".join(
+            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[:5]]
+        )
+        longest = "Longest:\n\t- " + "\t- ".join(
+            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[-5:]]
+        )
+
+        await SendMessage(shortest, message, reply=True)
+        await SendMessage(longest, message, reply=True)
 
     if "posters" in message.content:
         addFreq = {
             uname: len([entry for entry in addedSongs if entry.User == uname])
-            for uname in set([x.User for x in data])
+            for uname in {x.User for x in data}
         }
         addFreq = sorted(list(addFreq.items()), key=lambda x: x[1], reverse=True)
         outStr = "Top Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
