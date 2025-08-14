@@ -3,19 +3,10 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from pprint import pp
 from typing import Callable
 
-from Defines import (
-    COMMAND_KEY,
-    CONFIG,
-    MEMORY,
-    USER_DATA_FILE,
-    GetUserData,
-    SaveConfig,
-    SaveMemory,
-    UserDataEntry,
-)
+from Defines import (COMMAND_KEY, CONFIG, MEMORY, USER_DATA_FILE, GetUserData,
+                     SaveConfig, SaveMemory, UserDataEntry)
 from discord import File
 from SpotifyAccess import GetAllTracks, GetFullInfo
 
@@ -98,8 +89,11 @@ async def UserData(message):
 
 
 async def Blame(message):
-    return
-    # CURRENT_USER_DATA.rows_by_key(key="track", named=True)[]
+    for trackID in re.findall(r"https://open.spotify.com/track/([a-zA-Z0-9]+)", message.content):
+        for entry in [
+            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+        ]:
+            await SendMessage(f"{entry.TrackId} was added by {entry.User}", message, reply=True)
 
 
 async def UserStats(message):
@@ -173,8 +167,7 @@ async def HandleCommands(message) -> bool:
             handled = True
     if not handled:
         await SendMessage(
-            f"I think that was supposed to be a command, but none I recognized",
-            message,
+            "I think that was supposed to be a command, but none I recognized", message, reply=True
         )
     return handled
 
