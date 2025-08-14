@@ -76,6 +76,9 @@ class UserDataEntry:
     def __str__(self) -> str:
         return f"{self.TrackInfo} {self.EntryStatus} by {self.User}"
 
+    def __hash__(self):
+        return hash((str(self), str(self.TimeAdded), self.EntryStatus))
+
 
 CONFIG_FILE: Path = Path("data/conf.yml" if len(sys.argv) < 2 else sys.argv[1])
 MEMORY_FILE: Path = Path("data/memory.yml" if len(sys.argv) < 3 else sys.argv[2])
