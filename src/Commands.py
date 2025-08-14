@@ -177,3 +177,12 @@ async def HandleCommands(message) -> bool:
             message,
         )
     return handled
+
+
+async def DadMode(message):
+    if subject := re.search(r"i'?\s?a?m\s\s?a?([^\.\?\!]+)", message.content.lower()):
+        subject = subject.group(1)
+        await SendMessage(f"Hi {subject}, I'm Spoticord", message, reply=True)
+    if subject := re.search(r"make\sme\s?a?\s([^\.\?\!]+)", message.content.lower()):
+        subject = subject.group(1)
+        await SendMessage(f"Poof! You're a {subject}", message, reply=True)

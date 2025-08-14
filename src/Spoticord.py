@@ -4,7 +4,7 @@ import math
 import random
 import re
 
-from Commands import HandleCommands, NotifyPlaylistLength, SendMessage
+from Commands import HandleCommands, NotifyPlaylistLength, SendMessage,DadMode
 from DataLogging import GetResponse, LogUserData
 from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
 from discord.ext import tasks
@@ -76,6 +76,9 @@ async def MessageHandler(message):
     isTesting: bool = "test" in message.channel.name
     logged: bool = False
 
+    if username != "Spoticord":
+        await DadMode(message)
+    
     if message.content and message.content[0] == COMMAND_KEY and await HandleCommands(message):
         return
 
