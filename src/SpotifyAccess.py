@@ -2,7 +2,7 @@ import random
 
 import spotipy
 
-from Defines import CONFIG, MEMORY, SPOTIFY_CLIENT, GetUserData, SaveMemory, Status
+from Defines import CONFIG, SPOTIFY_CLIENT, GetMemory, GetUserData, SaveMemory, Status
 
 
 def GetAllTracks(playlistId):
@@ -34,7 +34,7 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
     if await IsARepeat(trackId):
         result = Status.Repeat
 
-    addChance, title, artist, uri, regions = GetTrackInformation(trackId)
+    addChance, title, artist, uri, regions = await GetDetails(trackId)
 
     if result == Status.Default and not IsInRegion(regions):
         result = Status.WrongMarket
@@ -59,8 +59,8 @@ def AddTrack(trackId, playlistId, isTesting) -> spotipy.exceptions.SpotifyExcept
         return e
 
 
-def ForceTrack(trackId, playlistId) -> tuple[Status, tuple]:
-    _addChance, title, artist, uri, _regions = GetTrackInformation(trackId)
+async def ForceTrack(trackId, playlistId) -> tuple[Status, tuple]:
+    _addChance, title, artist, uri, _regions = await GetDetails(trackId)
 
     if _exception := AddTrack(trackId, playlistId, False):
         title = "ERROR"
@@ -69,8 +69,8 @@ def ForceTrack(trackId, playlistId) -> tuple[Status, tuple]:
     return (Status.ForceAdd, (trackId, title, artist, uri))
 
 
-def GetTrackInformation(trackId) -> tuple:
-    r = SPOTIFY_CLIENT.track(trackId)
+async def GetDetails(trackId) -> tuple:
+    r = (await GetFullInfo(trackId))["track"]
     vibe: float = 0.0
     for artist in r["artists"]:
         v = CONFIG["Vibes"].get(artist["id"], 0.0)
@@ -85,26 +85,28 @@ def GetTrackInformation(trackId) -> tuple:
 
 
 async def GetFullInfo(trackId: str) -> dict[str, dict]:
+    memory: dict[str, dict] = await GetMemory()
     updatedMemory: bool = False
     trackInfo: dict = {}
     artistInfo: dict = {}
-
-    if trackId in MEMORY["cache"]["tracks"]:
-        trackInfo = MEMORY["cache"]["tracks"][trackId]
+    if trackId in memory["Cache"]["tracks"]:
+        trackInfo = memory["Cache"]["tracks"][trackId]
     else:
         trackInfo = SPOTIFY_CLIENT.track(trackId)
-        MEMORY["cache"]["tracks"][trackId] = trackInfo
+        trackInfo.pop("available_markets")
+        trackInfo["album"].pop("available_markets")
+        memory["Cache"]["tracks"][trackId] = trackInfo
         updatedMemory = True
 
-    artistId = trackInfo["artists"][0]["id"]
-    if artistId not in MEMORY["cache"]["artists"]:
-        artistInfo = MEMORY["cache"]["artists"][artistId]
+    artistId = str(trackInfo["artists"][0]["id"])
+    if artistId in memory["Cache"]["artists"]:
+        artistInfo = memory["Cache"]["artists"][artistId]
     else:
-        artistInfo = SPOTIFY_CLIENT.artist(trackInfo[artistId])
-        MEMORY["cache"]["artists"][trackId] = trackInfo
+        artistInfo = SPOTIFY_CLIENT.artist(artistId)
+        memory["Cache"]["artists"][artistId] = artistInfo
         updatedMemory = True
 
     if updatedMemory:
+        print(f"Saving Memory on {trackId}")
         await SaveMemory()
-
     return {"track": trackInfo, "artist": artistInfo}

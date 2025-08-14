@@ -7,7 +7,15 @@ from typing import Callable
 
 from discord import File
 
-from Defines import COMMAND_KEY, CONFIG, USER_DATA_FILE, GetUserData, SaveConfig, UserDataEntry
+from Defines import (
+    COMMAND_KEY,
+    CONFIG,
+    USER_DATA_FILE,
+    GetUserData,
+    SaveConfig,
+    SaveMemory,
+    UserDataEntry,
+)
 from SpotifyAccess import GetAllTracks, GetFullInfo
 from Utility import SendMessage
 
@@ -77,20 +85,18 @@ async def UserStats(message):
     addedSongs: list[UserDataEntry] = [x for x in data if x.EntryStatus.WasSuccessful]
     if "duration" in message.content:
         timed: dict[UserDataEntry, int] = {}
-
         for song in addedSongs:
             info = await GetFullInfo(song.TrackId)
             timed[song] = info["track"]["duration_ms"]
-
         sortedTimes: list[tuple[UserDataEntry, int]] = sorted(
             list(timed.items()), key=lambda x: x[1]
         )
 
-        shortest = "Shortest:\n\t- " + "\n\t- ".join(
-            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[:5]]
+        shortest = "Shortest:\n- " + "\n- ".join(
+            [f"{x[1] / 1000} seconds -> {x[0].TrackInfo}" for x in sortedTimes[:5]]
         )
-        longest = "Longest:\n\t- " + "\n\t- ".join(
-            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in reversed(sortedTimes[-5:])]
+        longest = "Longest:\n- " + "\n- ".join(
+            [f"{x[1] / 1000} seconds -> {x[0].TrackInfo}" for x in reversed(sortedTimes[-5:])]
         )
 
         await SendMessage(shortest, message, reply=True)
@@ -114,14 +120,13 @@ async def UserStats(message):
         outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
         await SendMessage(outStr, message, reply=True)
     if "genres" in message.content:
-        genres = []
-        await SendMessage("Loading genres (this may take a minute)", message, reply=True)
+        genres: list[str] = []
         for track in addedSongs:
             genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
         genreFreq = {x: genres.count(x) for x in set(genres)}
         genreFreq = [
             x for x in sorted(list(genreFreq.items()), key=lambda x: x[1], reverse=True) if x[1] > 1
-        ]
+        ][:10]
         outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
         await SendMessage(outStr, message, reply=True)
 

@@ -1,9 +1,10 @@
 import re
 
-from Defines import CONFIG, MEMORY, GetUserData, SaveMemory
+from Defines import CONFIG, GetMemory, GetUserData, SaveMemory
 
 
 async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
+    memory = await GetMemory()
     if useChannel:
         await contextObj.send(output)
         channelId = contextObj.id
@@ -11,8 +12,8 @@ async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool 
         await (contextObj.reply(output) if reply else contextObj.channel.send(output))
         channelId = contextObj.channel.id
 
-    if MEMORY["LastChannel"] != channelId:
-        MEMORY["LastChannel"] = str(channelId)
+    if memory["LastChannel"] != channelId:
+        memory["LastChannel"] = str(channelId)
         await SaveMemory()
 
 

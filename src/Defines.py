@@ -12,6 +12,8 @@ from discord.ext import commands
 from spotipy.oauth2 import SpotifyOAuth
 from yaml import Dumper, Loader, dump, load
 
+Dumper.ignore_aliases = lambda *args: True  # type: ignore
+
 
 class Status(StrEnum):
     Default = ""
@@ -80,9 +82,12 @@ class UserDataEntry:
         return hash((str(self), str(self.TimeAdded), self.EntryStatus))
 
 
+CACHE_FILE: Path = Path("data/cache.yml")
 CONFIG_FILE: Path = Path("data/conf.yml" if len(sys.argv) < 2 else sys.argv[1])
 MEMORY_FILE: Path = Path("data/memory.yml" if len(sys.argv) < 3 else sys.argv[2])
 USER_DATA_FILE: Path = Path("data/user_data.csv")
+
+CACHE_LOCK: asyncio.Lock = asyncio.Lock()
 CONFIG_LOCK: asyncio.Lock = asyncio.Lock()
 MEMORY_LOCK: asyncio.Lock = asyncio.Lock()
 USER_DATA_FILE_LOCK: asyncio.Lock = asyncio.Lock()
@@ -90,8 +95,8 @@ USER_DATA_FILE_LOCK: asyncio.Lock = asyncio.Lock()
 UNAME_STAND_IN: str = "UNAME_STAND_IN"
 COMMAND_KEY: str = "!"
 
-MEMORY: dict = load(MEMORY_FILE.read_text(encoding="utf-8"), Loader)
 CONFIG: dict = load(CONFIG_FILE.read_text(encoding="utf-8"), Loader)
+MEMORY: dict = {}
 USER_DATA: list[UserDataEntry] = []
 
 DISCORD_INTENTS: discord.Intents = discord.Intents.default()
@@ -116,15 +121,28 @@ async def SaveConfig() -> None:
 
 
 async def SaveMemory() -> None:
+    async with CACHE_LOCK:
+        with CACHE_FILE.open(encoding="utf-8", mode="w") as fp:
+            dump(MEMORY["Cache"], fp, Dumper=Dumper)
     async with MEMORY_LOCK:
         with MEMORY_FILE.open(encoding="utf-8", mode="w") as fp:
-            dump(MEMORY, fp, Dumper=Dumper)
+            dump(
+                {key: value for key, value in MEMORY.items() if key != "Cache"},
+                fp,
+                Dumper=Dumper,
+            )
 
 
 async def GetUserData() -> list[UserDataEntry]:
     if USER_DATA == []:
         await LoadUserData()
     return USER_DATA
+
+
+async def GetMemory() -> dict:
+    if MEMORY == {}:
+        await LoadMemory()
+    return MEMORY
 
 
 async def LoadUserData() -> None:
@@ -136,6 +154,15 @@ async def LoadUserData() -> None:
                 for idx, x in enumerate(csv.reader(csvFile, delimiter=",", quotechar='"'))
                 if idx != 0 and x != []
             ]
+
+
+async def LoadMemory() -> None:
+    global MEMORY
+    async with MEMORY_LOCK:
+        with MEMORY_FILE.open(encoding="utf-8", mode="r") as fp:
+            MEMORY = load(fp, Loader)
+        with CACHE_FILE.open(encoding="utf-8", mode="r") as fp:
+            MEMORY["Cache"] = load(fp, Loader)
 
 
 def AppendUserData(data: str):

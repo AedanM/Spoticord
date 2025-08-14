@@ -8,7 +8,7 @@ from discord.ext import tasks
 
 from Commands import HandleCommands
 from DataLogging import GetResponse, LogUserData
-from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status
+from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, GetMemory, SaveMemory, Status
 from SpotifyAccess import AddToPlaylist, ForceTrack
 from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
 
@@ -17,8 +17,9 @@ from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
 async def Poke() -> None:
     today: dt.datetime = dt.datetime.today()
     now = await TimeToSec(today.time())
-    if MEMORY["PokeTime"].date() != today.date():
-        MEMORY["Poked"] = False
+    memory = await GetMemory()
+    if memory["PokingTime"].date() != today.date():
+        memory["Poked"] = False
         seconds = 0
         while seconds < now:
             startSecs, endSecs = random.choice(CONFIG["PokeTimes"][dt.datetime.now().weekday()])
@@ -28,13 +29,13 @@ async def Poke() -> None:
                 minute=math.floor(seconds / 60) % 60,
                 second=seconds % 60,
             )
-            MEMORY["PokeTime"] = dt.datetime.combine(today.date(), newTime)
+            memory["PokingTime"] = dt.datetime.combine(today.date(), newTime)
         await SaveMemory()
-    elif not MEMORY["Poked"] and await TimeToSec(MEMORY["PokeTime"].time()) < now:
+    elif not memory["Poked"] and await TimeToSec(memory["PokingTime"].time()) < now:
         for channel in CONFIG["PokeChannels"]:
             if c := DISCORD_CLIENT.get_channel(int(channel)):
                 await SendMessage("🎶 What is @everyone listening to? 🎶", c, useChannel=True)
-                MEMORY["Poked"] = True
+                memory["Poked"] = True
                 await SaveMemory()
             else:
                 print("Can't find channel for poke")
@@ -43,20 +44,21 @@ async def Poke() -> None:
 @tasks.loop(seconds=600)
 async def SpecialTimes() -> None:
     today = dt.datetime.now()
+    memory = await GetMemory()
     for event in CONFIG["SpecialTimes"]:
         if today.weekday() != event["Day"]:
             continue
         if await TimeToSec(today.time()) < int(event["Time"]):
             continue
-        if MEMORY["SpecialTimes"][event["ID"]]:
+        if memory["SpecialTimes"][event["ID"]]:
             continue
         if channel := DISCORD_CLIENT.get_channel(int(event["Channel"])):
             await SendMessage(event["Message"], channel, useChannel=True)
-            MEMORY["SpecialTimes"][event["ID"]] = True
+            memory["SpecialTimes"][event["ID"]] = True
             # reset the other days
             for e in CONFIG["SpecialTimes"]:
                 if today.weekday() != e["Day"]:
-                    MEMORY["SpecialTimes"][e["ID"]] = False
+                    memory["SpecialTimes"][e["ID"]] = False
             await SaveMemory()
         else:
             print(f"Tried to send message on {channel} and failed")
@@ -64,7 +66,7 @@ async def SpecialTimes() -> None:
 
 @DISCORD_CLIENT.listen("on_ready")
 async def ReAnnounce():
-    if channel := DISCORD_CLIENT.get_channel(int(MEMORY["LastChannel"])):
+    if channel := DISCORD_CLIENT.get_channel(int((await GetMemory())["LastChannel"])):
         await SendMessage("I'm back 😎", channel, useChannel=True)
     else:
         print("Can't find channel for announce")
@@ -87,7 +89,7 @@ async def MessageHandler(message):
     if playlistID := CONFIG["Channel Maps"].get(message.channel.name, None):
         for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
             status, trackInfo = (
-                ForceTrack(trackID, playlistID)
+                await ForceTrack(trackID, playlistID)
                 if "!force" in message.content[:7]
                 else await AddToPlaylist(trackID, playlistID, isTesting)
             )
