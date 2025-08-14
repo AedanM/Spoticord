@@ -80,7 +80,7 @@ async def GetDetails(trackId) -> tuple:
         r["name"],
         r["artists"][0]["name"],
         r["uri"],
-        r["available_markets"],
+        r.get("available_markets", []),
     )
 
 
