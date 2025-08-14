@@ -7,8 +7,16 @@ from typing import Callable
 
 from discord import File
 
-from Defines import (COMMAND_KEY, CONFIG, MEMORY, USER_DATA_FILE, GetUserData,
-                     SaveConfig, SaveMemory, UserDataEntry)
+from Defines import (
+    COMMAND_KEY,
+    CONFIG,
+    MEMORY,
+    USER_DATA_FILE,
+    GetUserData,
+    SaveConfig,
+    SaveMemory,
+    UserDataEntry,
+)
 from SpotifyAccess import GetAllTracks, GetFullInfo
 
 COMMANDS: dict[str, Callable] = {}
@@ -199,5 +207,4 @@ async def DadMode(message):
             subject = subject.group(1)
             await SendMessage(
                 dadCommand["response"].replace("{subject}", subject), message, reply=True
-            )
             )
