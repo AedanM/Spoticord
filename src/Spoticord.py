@@ -1,13 +1,16 @@
+import asyncio
 import datetime as dt
 import math
 import random
 import re
 
-from Commands import DadMode, HandleCommands, NotifyPlaylistLength, SendMessage
-from DataLogging import GetResponse, LogUserData
-from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
 from discord.ext import tasks
+
+from Commands import HandleCommands
+from DataLogging import GetResponse, LogUserData
+from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status
 from SpotifyAccess import AddToPlaylist, ForceTrack
+from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
 
 
 @tasks.loop(seconds=60)
@@ -109,6 +112,9 @@ async def MessageHandler(message):
             )
 
 
-if __name__ == "__main__":
-
+async def main():
     DISCORD_CLIENT.run(CONFIG["DiscordToken"])
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

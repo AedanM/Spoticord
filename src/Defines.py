@@ -121,10 +121,6 @@ async def SaveMemory() -> None:
             dump(MEMORY, fp, Dumper=Dumper)
 
 
-async def TimeToSec(time) -> int:
-    return (time.hour * 60 + time.minute) * 60 + time.second
-
-
 async def GetUserData() -> list[UserDataEntry]:
     if USER_DATA == []:
         await LoadUserData()

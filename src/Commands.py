@@ -7,40 +7,11 @@ from typing import Callable
 
 from discord import File
 
-from Defines import (
-    COMMAND_KEY,
-    CONFIG,
-    MEMORY,
-    USER_DATA_FILE,
-    GetUserData,
-    SaveConfig,
-    SaveMemory,
-    UserDataEntry,
-)
+from Defines import COMMAND_KEY, CONFIG, USER_DATA_FILE, GetUserData, SaveConfig, UserDataEntry
 from SpotifyAccess import GetAllTracks, GetFullInfo
+from Utility import SendMessage
 
 COMMANDS: dict[str, Callable] = {}
-
-
-async def NotifyPlaylistLength(response):
-    playlistLen = len([x for x in await GetUserData() if x.EntryStatus.WasSuccessful])
-    if playlistLen % CONFIG["UpdateInterval"] == 0:
-        await SendMessage(f"This was song #{playlistLen} 🙌", response, reply=True)
-
-    return
-
-
-async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
-    if useChannel:
-        await contextObj.send(output)
-        channelId = contextObj.id
-    else:
-        await (contextObj.reply(output) if reply else contextObj.channel.send(output))
-        channelId = contextObj.channel.id
-
-    if MEMORY["LastChannel"] != channelId:
-        MEMORY["LastChannel"] = str(channelId)
-        await SaveMemory()
 
 
 async def OnTheList(message) -> None:
@@ -88,10 +59,6 @@ async def ListCommands(message) -> None:
     await SendMessage(f"Current Commands:\n\t-> {"\n\t-> ".join(commands)}", message)
 
 
-async def PreviewPoke(message):
-    await SendMessage(f"Poke should occur around {MEMORY["PokeTime"]}", message)
-
-
 async def UserData(message):
     await SendMessage("Here is the user data file", message, True)
     await message.reply(file=File(USER_DATA_FILE))
@@ -112,7 +79,7 @@ async def UserStats(message):
         timed: dict[UserDataEntry, int] = {}
 
         for song in addedSongs:
-            info = GetFullInfo(song.TrackId, skipArtist=True)
+            info = await GetFullInfo(song.TrackId)
             timed[song] = info["track"]["duration_ms"]
 
         sortedTimes: list[tuple[UserDataEntry, int]] = sorted(
@@ -123,7 +90,7 @@ async def UserStats(message):
             [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[:5]]
         )
         longest = "Longest:\n\t- " + "\n\t- ".join(
-            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[-5:]]
+            [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in reversed(sortedTimes[-5:])]
         )
 
         await SendMessage(shortest, message, reply=True)
@@ -150,7 +117,7 @@ async def UserStats(message):
         genres = []
         await SendMessage("Loading genres (this may take a minute)", message, reply=True)
         for track in addedSongs:
-            genres += GetFullInfo(track.TrackId)["artist"]["genres"]
+            genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
         genreFreq = {x: genres.count(x) for x in set(genres)}
         genreFreq = [
             x for x in sorted(list(genreFreq.items()), key=lambda x: x[1], reverse=True) if x[1] > 1
@@ -175,16 +142,21 @@ async def CheckTracks(message):
     await SendMessage(f"{found} Errors Found", message)
 
 
+async def Kill(message):
+    await SendMessage("", message)
+    sys.exit(0)
+
+
 COMMANDS = {
+    "blame": Blame,
+    "check": CheckTracks,
+    "commands": ListCommands,
+    "kill": Kill,
     "onTheList": OnTheList,
     "refresh": Refresh,
-    "commands": ListCommands,
-    "update": Update,
-    "previewPoke": PreviewPoke,
-    "userData": UserData,
-    "blame": Blame,
     "stats": UserStats,
-    "check": CheckTracks,
+    "update": Update,
+    "userData": UserData,
 }
 
 
@@ -199,12 +171,3 @@ async def HandleCommands(message) -> bool:
             "I think that was supposed to be a command, but none I recognized", message, reply=True
         )
     return handled
-
-
-async def DadMode(message):
-    for dadCommand in CONFIG["DadCommands"]:
-        if subject := re.search(dadCommand["regex"], message.content.lower()):
-            subject = subject.group(1)
-            await SendMessage(
-                dadCommand["response"].replace("{subject}", subject), message, reply=True
-            )

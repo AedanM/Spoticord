@@ -1,7 +1,8 @@
 import random
 
 import spotipy
-from Defines import CONFIG, SPOTIFY_CLIENT, GetUserData, Status
+
+from Defines import CONFIG, MEMORY, SPOTIFY_CLIENT, GetUserData, SaveMemory, Status
 
 
 def GetAllTracks(playlistId):
@@ -70,7 +71,7 @@ def ForceTrack(trackId, playlistId) -> tuple[Status, tuple]:
 
 def GetTrackInformation(trackId) -> tuple:
     r = SPOTIFY_CLIENT.track(trackId)
-    vibe = 0.0
+    vibe: float = 0.0
     for artist in r["artists"]:
         v = CONFIG["Vibes"].get(artist["id"], 0.0)
         vibe = max(v, vibe)
@@ -83,7 +84,27 @@ def GetTrackInformation(trackId) -> tuple:
     )
 
 
-def GetFullInfo(trackId: str, skipArtist: bool = False) -> dict[str, dict]:
-    r = SPOTIFY_CLIENT.track(trackId)
-    topArtist = SPOTIFY_CLIENT.artist(r["artists"][0]["id"]) if not skipArtist else {}
-    return {"track": r, "artist": topArtist}
+async def GetFullInfo(trackId: str) -> dict[str, dict]:
+    updatedMemory: bool = False
+    trackInfo: dict = {}
+    artistInfo: dict = {}
+
+    if trackId in MEMORY["cache"]["tracks"]:
+        trackInfo = MEMORY["cache"]["tracks"][trackId]
+    else:
+        trackInfo = SPOTIFY_CLIENT.track(trackId)
+        MEMORY["cache"]["tracks"][trackId] = trackInfo
+        updatedMemory = True
+
+    artistId = trackInfo["artists"][0]["id"]
+    if artistId not in MEMORY["cache"]["artists"]:
+        artistInfo = MEMORY["cache"]["artists"][artistId]
+    else:
+        artistInfo = SPOTIFY_CLIENT.artist(trackInfo[artistId])
+        MEMORY["cache"]["artists"][trackId] = trackInfo
+        updatedMemory = True
+
+    if updatedMemory:
+        await SaveMemory()
+
+    return {"track": trackInfo, "artist": artistInfo}
