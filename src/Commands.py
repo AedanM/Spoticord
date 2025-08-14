@@ -76,7 +76,7 @@ async def Refresh(message) -> None:
 
 
 async def Update(message) -> None:
-    os.chdir(Path(__file__).parent)
+    os.chdir(Path(__file__).parent.parent)
     results = subprocess.check_output(["git", "pull", "origin", "main"])
     await SendMessage(f"Pulled from Git: {results.decode("utf-8")}", message)
     await Refresh(message)
@@ -101,7 +101,9 @@ async def Blame(message):
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
-            await SendMessage(f"{entry.TrackName} - {entry.Artist} was added by {entry.User}", message, reply=True)
+            await SendMessage(
+                f"{entry.TrackName} - {entry.Artist} was added by {entry.User}", message, reply=True
+            )
 
 
 async def UserStats(message):
