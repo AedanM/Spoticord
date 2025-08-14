@@ -43,7 +43,7 @@ async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool 
 
 
 async def OnTheList(message) -> None:
-    for artistID in re.findall(r"https://open.spotify.com/artist/([a-zA-Z0-9]+)", message.content):
+    for artistID in re.findall(CONFIG["Regex"]["artist"], message.content):
         defaulted: bool = False
         if artistID in CONFIG["Vibes"]:
             await SendMessage(
@@ -97,7 +97,7 @@ async def UserData(message):
 
 
 async def Blame(message):
-    for trackID in re.findall(r"https://open.spotify.com/track/([a-zA-Z0-9]+)", message.content):
+    for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
@@ -183,9 +183,9 @@ async def HandleCommands(message) -> bool:
 
 
 async def DadMode(message):
-    if subject := re.search(r"i[\s'][a]?m\s([^\.\?\!\n]+)", message.content.lower()):
-        subject = subject.group(1)
-        await SendMessage(f"Hi {subject}, I'm Spoticord", message, reply=True)
-    if subject := re.search(r"make\sme\s?a?\s([^\.\?\!\n]+)", message.content.lower()):
-        subject = subject.group(1)
-        await SendMessage(f"Poof! You're a {subject}", message, reply=True)
+    for dadCommand in CONFIG["DadCommands"]:
+        if subject := re.search(dadCommand["regex"], message.content.lower()):
+            subject = subject.group(1)
+            await SendMessage(
+                dadCommand["response"].replace("{subject}", subject), message, reply=True
+            )

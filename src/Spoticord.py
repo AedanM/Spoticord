@@ -4,7 +4,7 @@ import math
 import random
 import re
 
-from Commands import HandleCommands, NotifyPlaylistLength, SendMessage,DadMode
+from Commands import DadMode, HandleCommands, NotifyPlaylistLength, SendMessage
 from DataLogging import GetResponse, LogUserData
 from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, MEMORY, SaveMemory, Status, TimeToSec
 from discord.ext import tasks
@@ -78,14 +78,12 @@ async def MessageHandler(message):
 
     if username != "Spoticord":
         await DadMode(message)
-    
+
     if message.content and message.content[0] == COMMAND_KEY and await HandleCommands(message):
         return
 
     if playlistID := CONFIG["Channel Maps"].get(message.channel.name, None):
-        for trackID in re.findall(
-            r"https://open.spotify.com/track/([a-zA-Z0-9]+)", message.content
-        ):
+        for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
             status, trackInfo = (
                 ForceTrack(trackID, playlistID)
                 if "!force" in message.content[:7]
