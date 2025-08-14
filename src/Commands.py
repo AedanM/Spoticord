@@ -5,17 +5,10 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from Defines import (
-    COMMAND_KEY,
-    CONFIG,
-    MEMORY,
-    USER_DATA_FILE,
-    GetUserData,
-    SaveConfig,
-    SaveMemory,
-    UserDataEntry,
-)
 from discord import File
+
+from Defines import (COMMAND_KEY, CONFIG, MEMORY, USER_DATA_FILE, GetUserData,
+                     SaveConfig, SaveMemory, UserDataEntry)
 from SpotifyAccess import GetAllTracks, GetFullInfo
 
 COMMANDS: dict[str, Callable] = {}
@@ -118,10 +111,10 @@ async def UserStats(message):
             list(timed.items()), key=lambda x: x[1]
         )
 
-        shortest = "Shortest:\n\t- " + "\t- ".join(
+        shortest = "Shortest:\n\t- " + "\n\t- ".join(
             [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[:5]]
         )
-        longest = "Longest:\n\t- " + "\t- ".join(
+        longest = "Longest:\n\t- " + "\n\t- ".join(
             [f"{x[0].TrackName} -> {x[1] / 1000} seconds" for x in sortedTimes[-5:]]
         )
 
@@ -206,4 +199,5 @@ async def DadMode(message):
             subject = subject.group(1)
             await SendMessage(
                 dadCommand["response"].replace("{subject}", subject), message, reply=True
+            )
             )
