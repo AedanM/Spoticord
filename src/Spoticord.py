@@ -1,9 +1,11 @@
-import asyncio
+"""Main of Spoticord Bot."""
+
 import datetime as dt
 import math
 import random
 import re
 
+from discord import Message
 from discord.ext import tasks
 
 from Commands import HandleCommands
@@ -15,6 +17,7 @@ from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
 
 @tasks.loop(seconds=60)
 async def Poke() -> None:
+    """Poke chat to see whats going on."""
     today: dt.datetime = dt.datetime.today()
     now = await TimeToSec(today.time())
     memory = await GetMemory()
@@ -43,6 +46,7 @@ async def Poke() -> None:
 
 @tasks.loop(seconds=600)
 async def SpecialTimes() -> None:
+    """Send messages at special times."""
     today = dt.datetime.now()
     memory = await GetMemory()
     for event in CONFIG["SpecialTimes"]:
@@ -65,17 +69,25 @@ async def SpecialTimes() -> None:
 
 
 @DISCORD_CLIENT.listen("on_ready")
-async def ReAnnounce():
+async def ReAnnounce() -> None:
+    """On first boot, say you're back."""
     if channel := DISCORD_CLIENT.get_channel(int((await GetMemory())["LastChannel"])):
         await SendMessage("I'm back 😎", channel, useChannel=True)
     else:
         print("Can't find channel for announce")
-    Poke.start()  # type:ignore
-    SpecialTimes.start()  # type:ignore
+    Poke.start()  # type: ignore[reportFunctionMemberAccess]
+    SpecialTimes.start()  # type: ignore[reportFunctionMemberAccess]
 
 
 @DISCORD_CLIENT.listen("on_message")
-async def MessageHandler(message):
+async def MessageHandler(message: Message) -> None:
+    """Handle all messages sent on server.
+
+    Parameters
+    ----------
+    message : Message
+        message sent in chat
+    """
     username: str = str(message.author).split("#", maxsplit=1)[0]
     isTesting: bool = "test" in message.channel.name
     logged: bool = False

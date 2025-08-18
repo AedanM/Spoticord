@@ -1,3 +1,5 @@
+"""Handle all spotify api calls."""
+
 import random
 
 import spotipy
@@ -5,7 +7,20 @@ import spotipy
 from Defines import CONFIG, SPOTIFY_CLIENT, GetMemory, GetUserData, SaveMemory, Status
 
 
-def GetAllTracks(playlistId):
+def GetAllTracks(playlistId: str) -> list[dict]:
+    """Get all current tracks in playlist.
+
+    Parameters
+    ----------
+    playlistId : str
+        playlist unique id
+
+    Returns
+    -------
+    list[dict]
+        list of track data
+    """
+    # todo incorporate cache or cut
     results = SPOTIFY_CLIENT.playlist_tracks(playlistId)
     tracks = results["items"]
     while results["next"]:
@@ -15,13 +30,37 @@ def GetAllTracks(playlistId):
 
 
 async def IsARepeat(trackId: str) -> bool:
+    """Check if track already added.
+
+    Parameters
+    ----------
+    trackId : str
+        unique track id
+
+    Returns
+    -------
+    bool
+        true if is a repeat
+    """
     matches = [
         x for x in await GetUserData() if x.TrackId == trackId and x.EntryStatus.WasSuccessful
     ]
     return len(matches) > 0
 
 
-def IsInRegion(regions: list[str]) -> bool:
+def IsInRegion(_trackID: str) -> bool:
+    """Check if playable on uk spotify.
+
+    Parameters
+    ----------
+    _trackID : str
+        unique track id
+
+    Returns
+    -------
+    bool
+        true if playable
+    """
     # todo re-implement region codes
     # if regions and "GB" not in regions:
     #
@@ -29,6 +68,22 @@ def IsInRegion(regions: list[str]) -> bool:
 
 
 async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple[Status, tuple]:
+    """Add track to spotify playlist.
+
+    Parameters
+    ----------
+    trackId : str
+        unique track id
+    playlistId : str
+        unique playlist id
+    isTesting : bool
+        are we on a test channel
+
+    Returns
+    -------
+    tuple[Status, tuple]
+        tuple of status and track info
+    """
     result = Status.Default
 
     if await IsARepeat(trackId):
@@ -51,7 +106,9 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
     return (result, (trackId, title, artist, uri))
 
 
-def AddTrack(trackId, playlistId, isTesting) -> spotipy.exceptions.SpotifyException | None:
+def AddTrack(
+    trackId: str, playlistId: str, isTesting: bool
+) -> spotipy.exceptions.SpotifyException | None:
     try:
         if not isTesting:
             SPOTIFY_CLIENT.playlist_add_items(playlistId, [trackId])

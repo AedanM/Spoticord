@@ -1,3 +1,5 @@
+"""Handle Logging Data."""
+
 from datetime import datetime
 
 from Defines import UNAME_STAND_IN, AppendUserData, LoadUserData, Status
@@ -7,8 +9,16 @@ async def LogUserData(
     trackInfo: tuple[str, str, str, str],
     user: str,
     status: Status,
-    isTesting,
+    isTesting: bool,
 ) -> None:
+    """Write user data to a file.
+
+    Args:
+        trackInfo (tuple[str, str, str, str]): tuple of identity Information
+        user (str): username of who added track
+        status (Status): Summary of attempt to add track
+        isTesting (bool): is this in a production channel?
+    """
     message = f"\n{datetime.now()},{user},{status},{','.join([f'"{x}"' for x in trackInfo])}"
     if isTesting and status != Status.ForceAdd:
         print(message)
@@ -18,7 +28,18 @@ async def LogUserData(
 
 
 def GetResponse(result: Status, username: str, isTesting: bool) -> str:
-    s = ""
+    """Get the response string for different status events.
+
+    Args:
+        result (Status): result of attempt to add to playlist
+        username (str): username of person who attempted
+        isTesting (bool): are we in a production channel
+
+    Returns
+    -------
+        str: response to status event
+    """
+    s: str = ""
     match result:
         case Status.Repeat:
             s = (
@@ -31,9 +52,9 @@ def GetResponse(result: Status, username: str, isTesting: bool) -> str:
         case Status.WrongMarket:
             s = "Track not available in the UK, sorry."
         case Status.Failed:
-            s = "You generated an exception with that one 😡, thanks numbnuts"
+            s = "You generated an exception with that one 😡, thanks numb nuts"
         case Status.RegexFail:
-            s = f"@{UNAME_STAND_IN}, I think that was a spotify link but I couldn't figure it as a track"
+            s = f"@{UNAME_STAND_IN}, I think that was a spotify link but I couldn't figure it"
         case Status.Added:
             s = ""
         case Status.ForceAdd:
