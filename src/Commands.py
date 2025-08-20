@@ -14,6 +14,7 @@ from SpotifyAccess import GetAllTracks, GetFullInfo
 from Utility import SendMessage
 
 COMMANDS: dict[str, Callable] = {}
+STATS = ["genres", "artists", "duration", "posters"]
 
 
 async def OnTheList(message: Message) -> None:
@@ -80,7 +81,7 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted([str(x) for x in COMMANDS])
+    commands = sorted([str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]])
     await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
 
 
@@ -151,7 +152,7 @@ async def UserStats(message: Message) -> None:
             for artist in {x.Artist for x in data}
         }
         addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
-        addFreq = [x for x in addFreq if x[1] > 1]
+        addFreq = [x for x in addFreq if x[1] >= addFreq[5][1]]
         outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
         await SendMessage(outStr, message, reply=True)
     if "genres" in message.content:
