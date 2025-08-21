@@ -2,9 +2,9 @@
 
 from discord import Message
 
-from src.Defines import GetMemory, GetUserData, UserDataEntry
-from src.SpotifyAccess import GetFullInfo
-from src.Utility import SendMessage
+from Defines import GetMemory, GetUserData, UserDataEntry
+from SpotifyAccess import GetFullInfo
+from Utility import SendMessage
 
 STAT_COUNT: int = 5
 

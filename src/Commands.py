@@ -17,7 +17,7 @@ from Defines import (
     SaveConfig,
 )
 from SpotifyAccess import GetAllTracks
-from src.Stats import UserStats
+from Stats import UserStats
 from Utility import SendMessage
 
 COMMANDS: dict[str, Callable] = {}
