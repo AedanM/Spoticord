@@ -7,21 +7,28 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from discord import File, Message
+
 from Defines import (
     COMMAND_KEY,
     CONFIG,
     USER_DATA_FILE,
-    GetMemory,
     GetUserData,
     SaveConfig,
-    UserDataEntry,
 )
-from discord import File, Message
-from SpotifyAccess import GetAllTracks, GetFullInfo
+from SpotifyAccess import GetAllTracks
+from src.Stats import UserStats
 from Utility import SendMessage
 
 COMMANDS: dict[str, Callable] = {}
-STATS = ["genres", "artists", "duration", "posters"]
+STATS = [
+    "artists",
+    "duration",
+    "genres",
+    "mainstream",
+    "popularity",
+    "posters",
+]
 
 
 async def OnTheList(message: Message) -> None:
@@ -88,9 +95,7 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted(
-        [str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]]
-    )
+    commands = sorted([str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]])
     await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
 
 
@@ -114,134 +119,9 @@ async def Blame(message: Message) -> None:
     """
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
-            x
-            for x in await GetUserData()
-            if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
             await SendMessage(f"{entry}", message, reply=True)
-
-
-async def UserStats(message: Message) -> None:
-    """Get statistics for track additions.
-
-    Args:
-        message (Message): triggering message
-    """
-    data: list[UserDataEntry] = await GetUserData()
-    statCount: int = 5
-    useReverse: bool = "reverse" not in message.content
-    addedSongs: list[UserDataEntry] = [x for x in data if x.EntryStatus.WasSuccessful]
-    if "duration" in message.content:
-        timed: dict[UserDataEntry, int] = {}
-        for song in addedSongs:
-            info = await GetFullInfo(song.TrackId)
-            timed[song] = info["track"]["duration_ms"]
-        sortedTimes: list[tuple[UserDataEntry, int]] = sorted(
-            timed.items(),
-            key=lambda x: x[1],
-        )
-
-        shortest = "Shortest:\n- " + "\n- ".join(
-            [f"{x[1] / 1000} seconds -> {x[0].TrackInfo}" for x in sortedTimes[:5]],
-        )
-        longest = "Longest:\n- " + "\n- ".join(
-            [
-                f"{x[1] / 1000} seconds -> {x[0].TrackInfo}"
-                for x in reversed(sortedTimes[-5:])
-            ],
-        )
-
-        await SendMessage(shortest, message, reply=True)
-        await SendMessage(longest, message, reply=True)
-
-    if "posters" in message.content:
-        addFreq = {
-            uname: len([entry for entry in addedSongs if entry.User == uname])
-            for uname in {x.User for x in data}
-        }
-        addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
-        outStr = "Top Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
-        await SendMessage(outStr, message, reply=True)
-    if "cool" in message.content:
-        results = {}
-        for uname in {x.User for x in data}:
-            totalSongs = 0
-            totalPopularity = 0
-            for entry in addedSongs:
-                if entry.User == uname and entry.EntryStatus.WasSuccessful:
-                    t = await GetFullInfo(entry.TrackId)
-                    totalPopularity += (
-                        t["artist"]["popularity"]
-                        if "followers" not in message.content
-                        else t["artist"]["followers"]["total"]
-                    )
-                    totalSongs += 1
-            if totalSongs != 0:
-                results[uname] = round(totalPopularity / totalSongs, 2)
-        cool = sorted(results.items(), key=lambda x: x[1], reverse=not useReverse)
-        outStr = "Coolest Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in cool])
-        await SendMessage(outStr, message, reply=True)
-    if "artists" in message.content:
-        addFreq = {
-            artist: len([entry for entry in addedSongs if entry.Artist == artist])
-            for artist in {x.Artist for x in data}
-        }
-        addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=useReverse)
-        addFreq = (
-            [x for x in addFreq if x[1] >= addFreq[statCount][1]]
-            if useReverse
-            else [x for x in addFreq if x[1] <= addFreq[statCount][1]]
-        )
-        if len(addFreq) > 2 * statCount:
-            addFreq = addFreq[: 2 * statCount]
-        outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
-        await SendMessage(outStr, message, reply=True)
-    if "genres" in message.content:
-        genres: list[str] = []
-        for track in addedSongs:
-            genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
-        genreFreq = {x: genres.count(x) for x in set(genres)}
-        genreFreq = [
-            x
-            for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse)
-            if x[1] > 1
-        ]
-        genreFreq = (
-            [x for x in genreFreq if x[1] >= genreFreq[statCount][1]]
-            if useReverse
-            else [x for x in genreFreq if x[1] <= genreFreq[statCount][1]]
-        )
-        if len(genreFreq) > 2 * statCount:
-            addFreq = genreFreq[: 2 * statCount]
-        outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
-        await SendMessage(outStr, message, reply=True)
-    if "unlabeled" in message.content:
-        mem = await GetMemory()
-        artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
-        messageStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
-        await SendMessage(messageStr, message, True)
-    if "popularity" in message.content:
-        popularity = {}
-        for track in addedSongs:
-            trackInfo = await GetFullInfo(track.TrackId)
-            if trackInfo["artist"]["name"] not in popularity:
-                popularity[trackInfo["artist"]["name"]] = (
-                    trackInfo["artist"]["popularity"]
-                    if "followers" not in message.content
-                    else trackInfo["artist"]["followers"]["total"]
-                )
-        popularity = sorted(popularity.items(), key=lambda x: x[1], reverse=useReverse)
-        popularity = (
-            [x for x in popularity if x[1] >= popularity[statCount][1]]
-            if useReverse
-            else [x for x in popularity if x[1] <= popularity[statCount][1]]
-        )
-        if len(popularity) > 2 * statCount:
-            popularity = popularity[: 2 * statCount]
-        outStr = "Popularity Rankings:\n" + "\n".join(
-            [f"{x[0]}: {x[1]}" for x in popularity]
-        )
-        await SendMessage(outStr, message, reply=True)
 
 
 async def CheckTracks(message: Message) -> None:
