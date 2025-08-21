@@ -194,7 +194,7 @@ async def UserStats(message: Message) -> None:
         for track in addedSongs:
             trackInfo = await GetFullInfo(track.TrackId)
             if trackInfo["artist"]["name"] not in popularity:
-                popularity["artist"]["name"] = (
+                popularity[trackInfo["artist"]["name"]] = (
                     trackInfo["artist"]["popularity"]
                     if "followers" not in message.content
                     else trackInfo["artist"]["followers"]["total"]
