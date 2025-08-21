@@ -7,6 +7,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from discord import File, Message
+
 from Defines import (
     COMMAND_KEY,
     CONFIG,
@@ -16,7 +18,6 @@ from Defines import (
     SaveConfig,
     UserDataEntry,
 )
-from discord import File, Message
 from SpotifyAccess import GetAllTracks, GetFullInfo
 from Utility import SendMessage
 
@@ -88,9 +89,7 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted(
-        [str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]]
-    )
+    commands = sorted([str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]])
     await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
 
 
@@ -114,9 +113,7 @@ async def Blame(message: Message) -> None:
     """
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
-            x
-            for x in await GetUserData()
-            if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
             await SendMessage(f"{entry}", message, reply=True)
 
@@ -143,10 +140,7 @@ async def UserStats(message: Message) -> None:
             [f"{x[1] / 1000} seconds -> {x[0].TrackInfo}" for x in sortedTimes[:5]],
         )
         longest = "Longest:\n- " + "\n- ".join(
-            [
-                f"{x[1] / 1000} seconds -> {x[0].TrackInfo}"
-                for x in reversed(sortedTimes[-5:])
-            ],
+            [f"{x[1] / 1000} seconds -> {x[0].TrackInfo}" for x in reversed(sortedTimes[-5:])],
         )
 
         await SendMessage(shortest, message, reply=True)
@@ -166,7 +160,11 @@ async def UserStats(message: Message) -> None:
             for artist in {x.Artist for x in data}
         }
         addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
-        addFreq = [x for x in addFreq if x[1] >= addFreq[5][1]]
+        addFreq = (
+            [x for x in addFreq if x[1] >= addFreq[5][1]]
+            if "reverse" not in message.content
+            else [x for x in addFreq if x[1] <= addFreq[-5][1]]
+        )
         outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
         await SendMessage(outStr, message, reply=True)
     if "genres" in message.content:
@@ -175,10 +173,9 @@ async def UserStats(message: Message) -> None:
             genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
         genreFreq = {x: genres.count(x) for x in set(genres)}
         genreFreq = [
-            x
-            for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=True)
-            if x[1] > 1
-        ][:10]
+            x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=True) if x[1] > 1
+        ]
+        genreFreq = genreFreq[:10] if "reverse" not in message.content else genreFreq[-10:]
         outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
         await SendMessage(outStr, message, reply=True)
     if "unlabeled" in message.content:
