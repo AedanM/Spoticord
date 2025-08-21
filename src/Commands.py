@@ -175,7 +175,11 @@ async def UserStats(message: Message) -> None:
         genreFreq = [
             x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=True) if x[1] > 1
         ]
-        genreFreq = genreFreq[:10] if "reverse" not in message.content else genreFreq[-10:]
+        genreFreq = (
+            [x for x in genreFreq if x[1] >= genreFreq[10][1]]
+            if "reverse" not in message.content
+            else [x for x in genreFreq if x[1] <= genreFreq[10][1]]
+        )
         outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
         await SendMessage(outStr, message, reply=True)
     if "unlabeled" in message.content:
