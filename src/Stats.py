@@ -37,7 +37,7 @@ async def UserStats(message: Message) -> None:
                 useReverse,
                 "follower" in message.content,
             )
-    if "artist" in message.content:
+    if "artist" in message.content and "mainstream" not in message.content:
         outStr = await GetArtistCount(data, useReverse)
     if "genre" in message.content:
         outStr = await GetGenreCount(data, useReverse)
