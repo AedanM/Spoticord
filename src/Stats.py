@@ -1,8 +1,7 @@
 """Functions to get stats."""
 
-from discord import Message
-
 from Defines import GetMemory, GetUserData, UserDataEntry
+from discord import Message
 from SpotifyAccess import GetFullInfo
 from Utility import SendMessage
 
@@ -23,7 +22,11 @@ async def UserStats(message: Message) -> None:
     if "posters" in message.content:
         outStr = await GetPosterCount(data)
     if "mainstream" in message.content:
-        outStr = await GetMainstreamRating(data, useReverse, "follower" in message.count)
+        outStr = await GetMainstreamRating(
+            data,
+            useReverse,
+            "follower" in message.content,
+        )
     if "artists" in message.content:
         outStr = await GetArtistCount(data, useReverse)
     if "genres" in message.content:
@@ -33,7 +36,11 @@ async def UserStats(message: Message) -> None:
         artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
         outStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
     if "popularity" in message.content:
-        outStr = await GetPopularityRanking(data, useReverse, "follower" in message.content)
+        outStr = await GetPopularityRanking(
+            data,
+            useReverse,
+            "follower" in message.content,
+        )
 
     if outStr:
         await SendMessage(outStr, message, reply=True)
@@ -104,7 +111,9 @@ async def GetGenreCount(
         genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
     genreFreq = {x: genres.count(x) for x in set(genres)}
     genreFreq = [
-        x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse) if x[1] > 1
+        x
+        for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse)
+        if x[1] > 1
     ]
     genreFreq = (
         [x for x in genreFreq if x[1] >= genreFreq[STAT_COUNT][1]]
