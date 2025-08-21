@@ -159,12 +159,12 @@ async def UserStats(message: Message) -> None:
             artist: len([entry for entry in addedSongs if entry.Artist == artist])
             for artist in {x.Artist for x in data}
         }
-        addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
-        addFreq = (
-            [x for x in addFreq if x[1] >= addFreq[5][1]]
-            if "reverse" not in message.content
-            else [x for x in addFreq if x[1] <= addFreq[-5][1]]
+        addFreq = sorted(
+            addFreq.items(),
+            key=lambda x: x[1],
+            reverse=("reverse" not in message.content),
         )
+        addFreq = [x for x in addFreq if x[1] >= addFreq[5][1]]
         outStr = "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
         await SendMessage(outStr, message, reply=True)
     if "genres" in message.content:
@@ -173,13 +173,15 @@ async def UserStats(message: Message) -> None:
             genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
         genreFreq = {x: genres.count(x) for x in set(genres)}
         genreFreq = [
-            x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=True) if x[1] > 1
+            x
+            for x in sorted(
+                genreFreq.items(),
+                key=lambda x: x[1],
+                reverse=("reverse" not in message.content),
+            )
+            if x[1] > 1
         ]
-        genreFreq = (
-            [x for x in genreFreq if x[1] >= genreFreq[10][1]]
-            if "reverse" not in message.content
-            else [x for x in genreFreq if x[1] <= genreFreq[10][1]]
-        )
+        genreFreq = [x for x in genreFreq if x[1] >= genreFreq[10][1]]
         outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
         await SendMessage(outStr, message, reply=True)
     if "unlabeled" in message.content:
@@ -187,6 +189,24 @@ async def UserStats(message: Message) -> None:
         artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
         messageStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
         await SendMessage(messageStr, message, True)
+    if "popularity":
+        popularity = {}
+        for track in addedSongs:
+            trackInfo = await GetFullInfo(track.TrackId)
+            if trackInfo["artist"]["name"] not in popularity:
+                popularity["artist"]["name"] = (
+                    trackInfo["artist"]["popularity"]
+                    if "followers" not in message.content
+                    else trackInfo["artist"]["followers"]["total"]
+                )
+        popularity = sorted(
+            popularity.items(),
+            key=lambda x: x[1],
+            reverse=("reverse" not in message.content),
+        )
+        popularity = [x for x in popularity if x[1] >= popularity[10][1]]
+        outStr = "Popularity Rankings:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in popularity])
+        await SendMessage(outStr, message, reply=True)
 
 
 async def CheckTracks(message: Message) -> None:
