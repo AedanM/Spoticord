@@ -9,7 +9,15 @@ from pathlib import Path
 
 from discord import File, Message
 
-from Defines import COMMAND_KEY, CONFIG, USER_DATA_FILE, GetUserData, SaveConfig, UserDataEntry
+from Defines import (
+    COMMAND_KEY,
+    CONFIG,
+    USER_DATA_FILE,
+    GetMemory,
+    GetUserData,
+    SaveConfig,
+    UserDataEntry,
+)
 from SpotifyAccess import GetAllTracks, GetFullInfo
 from Utility import SendMessage
 
@@ -165,6 +173,11 @@ async def UserStats(message: Message) -> None:
         ][:10]
         outStr = "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
         await SendMessage(outStr, message, reply=True)
+    if "unlabeled" in message.content:
+        mem = await GetMemory()
+        artists = [x for x in mem["Cache"]["Artists"] if x["genres"] == []]
+        messageStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
+        await SendMessage(messageStr, message, True)
 
 
 async def CheckTracks(message: Message) -> None:
