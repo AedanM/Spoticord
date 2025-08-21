@@ -1,7 +1,8 @@
 """Functions to get stats."""
 
-from Defines import GetMemory, GetUserData, UserDataEntry
 from discord import Message
+
+from Defines import GetMemory, GetUserData, UserDataEntry
 from SpotifyAccess import GetFullInfo
 from Utility import SendMessage
 
@@ -16,20 +17,29 @@ async def UserStats(message: Message) -> None:
     """
     data: list[UserDataEntry] = await GetUserData()
     useReverse: bool = "reverse" not in message.content
+    username: str = str(message.author).split("#", maxsplit=1)[0]
     outStr: str = ""
     if "duration" in message.content:
         outStr = await GetDuration(data, useReverse)
-    if "posters" in message.content:
+    if "poster" in message.content:
         outStr = await GetPosterCount(data)
     if "mainstream" in message.content:
-        outStr = await GetMainstreamRating(
-            data,
-            useReverse,
-            "follower" in message.content,
-        )
-    if "artists" in message.content:
+        if "artist" in message.content:
+            outStr = await GetMainstreamArtists(
+                data,
+                username,
+                useReverse,
+                "follower" in message.content,
+            )
+        else:
+            outStr = await GetMainstreamRating(
+                data,
+                useReverse,
+                "follower" in message.content,
+            )
+    if "artist" in message.content:
         outStr = await GetArtistCount(data, useReverse)
-    if "genres" in message.content:
+    if "genre" in message.content:
         outStr = await GetGenreCount(data, useReverse)
     if "unlabeled" in message.content:
         mem = await GetMemory()
@@ -111,9 +121,7 @@ async def GetGenreCount(
         genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
     genreFreq = {x: genres.count(x) for x in set(genres)}
     genreFreq = [
-        x
-        for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse)
-        if x[1] > 1
+        x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse) if x[1] > 1
     ]
     genreFreq = (
         [x for x in genreFreq if x[1] >= genreFreq[STAT_COUNT][1]]
@@ -184,19 +192,62 @@ async def GetMainstreamRating(
     for uname in {x.User for x in data}:
         totalSongs = 0
         totalPopularity = 0
-        for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
-            if entry.User == uname and entry.EntryStatus.WasSuccessful:
-                t = await GetFullInfo(entry.TrackId)
-                totalPopularity += (
-                    t["artist"]["popularity"]
-                    if not useFollowers
-                    else t["artist"]["followers"]["total"]
-                )
-                totalSongs += 1
+        for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == uname]:
+            t = await GetFullInfo(entry.TrackId)
+            totalPopularity += (
+                t["artist"]["popularity"] if not useFollowers else t["artist"]["followers"]["total"]
+            )
+            totalSongs += 1
         if totalSongs != 0:
             results[uname] = round(totalPopularity / totalSongs, 2)
     cool = sorted(results.items(), key=lambda x: x[1], reverse=useReverse)
-    return "Most Mainstream Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in cool])
+    return "Mainstream Ratings:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in cool])
+
+
+async def GetMainstreamArtists(
+    data: list[UserDataEntry],
+    user: str,
+    useReverse: bool,
+    useFollowers: bool,
+) -> str:
+    """Get data for who the user's most mainstream artists.
+
+    Parameters
+    ----------
+    data : list[UserDataEntry]
+        entry data
+    user:
+        user who requested data
+    useReverse: bool
+        flip data
+    useFollowers: bool
+        flip data
+
+    Returns
+    -------
+    str
+        result str
+    """
+    results = {}
+    for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == user]:
+        info = await GetFullInfo(entry.TrackId)
+        if info["artist"]["name"] not in results:
+            results[info["artist"]["name"]] = (
+                info["artist"]["popularity"]
+                if not useFollowers
+                else info["artist"]["followers"]["total"]
+            )
+    popularityRanking = sorted(results.items(), key=lambda x: x[1], reverse=useReverse)
+    popularityRanking = (
+        [x for x in popularityRanking if x[1] >= popularityRanking[STAT_COUNT][1]]
+        if useReverse
+        else [x for x in popularityRanking if x[1] <= popularityRanking[STAT_COUNT][1]]
+    )
+    if len(popularityRanking) > 2 * STAT_COUNT:
+        popularityRanking = popularityRanking[: 2 * STAT_COUNT]
+    return f"Mainstream Artists for {user}:\n" + "\n".join(
+        [f"{x[0]}: {x[1]}" for x in popularityRanking],
+    )
 
 
 async def GetPosterCount(data: list[UserDataEntry]) -> str:
