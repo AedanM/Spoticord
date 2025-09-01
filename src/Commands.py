@@ -26,6 +26,7 @@ STATS = [
     "duration",
     "genres",
     "mainstream",
+    "mainstream personal",
     "popularity",
     "posters",
 ]

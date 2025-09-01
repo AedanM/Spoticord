@@ -86,7 +86,7 @@ class UserDataEntry:
         UserDataEntry
             instance of user data entry
         """
-        dataFields = [x.replace('"', "").strip() for x in s.split(",")]
+        dataFields = list(csv.reader([s], delimiter=",", quotechar='"'))[0]
         return cls.FromList(dataFields)
 
     @property
@@ -148,7 +148,7 @@ USER_DATA_FILE_LOCK: asyncio.Lock = asyncio.Lock()
 
 UNAME_STAND_IN: str = "UNAME_STAND_IN"
 COMMAND_KEY: str = "!"
-SEPARATOR: str = ",,THIS IS MY VERY LONG AND LOW COLLISION SEPARATOR,,"
+SEPARATOR: str = ","
 
 CONFIG: dict = load(CONFIG_FILE.read_text(encoding="utf-8"))
 MEMORY: dict = {}

@@ -238,7 +238,7 @@ async def GetPersonalMainstream(
                     if not useFollowers
                     else info["artist"]["followers"]["total"]
                 )
-    return f"Mainstream Artists for {user}:", sorted(results.items(), key=lambda x: x[1])
+    return f"Mainstream Data for {user}:", sorted(results.items(), key=lambda x: x[1])
 
 
 async def GetPosterCount(data: list[UserDataEntry]) -> tuple[str, list]:
