@@ -8,7 +8,7 @@ from Defines import GetMemory, GetUserData, UserDataEntry
 from SpotifyAccess import GetFullInfo
 from Utility import SendMessage
 
-STAT_COUNT: int = 5
+STAT_COUNT: int = 10
 
 
 async def FilterData(message: Message, data: list[list]) -> list:
@@ -17,12 +17,10 @@ async def FilterData(message: Message, data: list[list]) -> list:
     statCount = STAT_COUNT
     if match := re.search(r"\s[Tt](\d+)", message.content):
         statCount = int(match.group(1))
-    if "reverse" in message.content:
+    if "reverse" not in message.content:
         out = list(reversed(out))
-        out = [x for x in out if x[1] <= out[statCount][1]]
-    else:
-        out = [x for x in out if x[1] >= out[statCount][1]]
-
+    if statCount < len(out):
+        out = out[:statCount]
     return out
 
 
@@ -67,7 +65,7 @@ async def UserStats(message: Message) -> None:
             "track" in message.content,
         )
     stats = await FilterData(message, stats)
-    outStr = f"{outStr}:\n{'\n'.join([f'{x[0]}: {x[1]}' for x in stats])}"
+    outStr = f"{outStr}\n{'\n'.join([f'{x[0]}: {x[1]}' for x in stats])}"
     if outStr:
         await SendMessage(outStr, message, reply=True)
 
@@ -110,12 +108,7 @@ async def GetPopularityRanking(
                     0.25 * trackInfo["artist"]["popularity"]
                 )
 
-    popularity = sorted(popularity.items(), key=lambda x: x[1])
-    popularity = [x for x in popularity if x[1] <= popularity[STAT_COUNT][1]]
-    if len(popularity) > 2 * STAT_COUNT:
-        popularity = popularity[: 2 * STAT_COUNT]
-
-    return "Popularity Rankings:", popularity
+    return "Popularity Rankings:", sorted(popularity.items(), key=lambda x: x[1])
 
 
 async def GetGenreCount(
@@ -166,7 +159,7 @@ async def GetArtistCount(
         for artist in {x.Artist for x in data}
     }
     addFreq = sorted(addFreq.items(), key=lambda x: x[1])
-    addFreq = [x for x in addFreq if x[1] <= addFreq[STAT_COUNT][1] and x[0] != 0]
+    addFreq = [x for x in addFreq if x[0] != 0]
     return "Artist Frequency", addFreq
 
 
@@ -237,11 +230,7 @@ async def GetMainstreamArtists(
                 if not useFollowers
                 else info["artist"]["followers"]["total"]
             )
-    popularityRanking = sorted(results.items(), key=lambda x: x[1])
-    popularityRanking = [x for x in popularityRanking if x[1] <= popularityRanking[STAT_COUNT][1]]
-    if len(popularityRanking) > 2 * STAT_COUNT:
-        popularityRanking = popularityRanking[: 2 * STAT_COUNT]
-    return f"Mainstream Artists for {user}:", popularityRanking
+    return f"Mainstream Artists for {user}:", sorted(results.items(), key=lambda x: x[1])
 
 
 async def GetPosterCount(data: list[UserDataEntry]) -> tuple[str, list]:
@@ -267,7 +256,7 @@ async def GetPosterCount(data: list[UserDataEntry]) -> tuple[str, list]:
         )
         for uname in {x.User for x in data}
     }
-    addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
+    addFreq = sorted(addFreq.items(), key=lambda x: x[1])
     return "Song Posters:", addFreq
 
 
@@ -294,4 +283,4 @@ async def GetDuration(data: list[UserDataEntry]) -> tuple[str, list]:
         timed.items(),
         key=lambda x: x[1],
     )
-    return "Track Duration (s):", [[x[0].TrackInfo, x[1] / 1000] for x in sortedTimes]
+    return "Track Duration (s):", [[round(x[1] / 1000), x[0].TrackInfo] for x in sortedTimes]

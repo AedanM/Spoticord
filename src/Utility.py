@@ -1,16 +1,23 @@
 import re
+from itertools import islice
 
 from Defines import CONFIG, GetMemory, GetUserData, SaveMemory
 
 
+def Chunk(toBeSplit, chunkSize) -> list:
+    toBeSplit = iter(toBeSplit)
+    return list(iter(lambda: tuple(islice(toBeSplit, chunkSize)), ()))
+
+
 async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
     memory = await GetMemory()
-    if useChannel:
-        await contextObj.send(output)
-        channelId = contextObj.id
-    else:
-        await (contextObj.reply(output) if reply else contextObj.channel.send(output))
-        channelId = contextObj.channel.id
+    channelId = contextObj.channel.id if not useChannel else contextObj.id
+    for message in Chunk(output, 2000):
+        message = "".join(message)
+        if useChannel:
+            await contextObj.send(message)
+        else:
+            await (contextObj.reply(message) if reply else contextObj.channel.send(message))
 
     if memory["LastChannel"] != channelId:
         memory["LastChannel"] = str(channelId)
