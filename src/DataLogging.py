@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from Defines import UNAME_STAND_IN, AppendUserData, LoadUserData, Status
+from Defines import SEPARATOR, UNAME_STAND_IN, AppendUserData, LoadUserData, Status
 
 
 async def LogUserData(
@@ -19,7 +19,9 @@ async def LogUserData(
         status (Status): Summary of attempt to add track
         isTesting (bool): is this in a production channel?
     """
-    message = f"\n{datetime.now()},{user},{status},{','.join([f'"{x}"' for x in trackInfo])}"
+    message: str = SEPARATOR.join(
+        [str(datetime.now()), user, status] + [f'"{x}"' for x in trackInfo],
+    )
     if isTesting and status != Status.ForceAdd:
         print(message)
     else:

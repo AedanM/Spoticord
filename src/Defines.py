@@ -148,6 +148,7 @@ USER_DATA_FILE_LOCK: asyncio.Lock = asyncio.Lock()
 
 UNAME_STAND_IN: str = "UNAME_STAND_IN"
 COMMAND_KEY: str = "!"
+SEPARATOR: str = ",,THIS IS MY VERY LONG AND LOW COLLISION SEPARATOR,,"
 
 CONFIG: dict = load(CONFIG_FILE.read_text(encoding="utf-8"))
 MEMORY: dict = {}
