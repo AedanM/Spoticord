@@ -1,5 +1,7 @@
 """Functions to get stats."""
 
+import re
+
 from discord import Message
 
 from Defines import GetMemory, GetUserData, UserDataEntry
@@ -9,6 +11,21 @@ from Utility import SendMessage
 STAT_COUNT: int = 5
 
 
+async def FilterData(message: Message, data: list[list]) -> list:
+    """Perform common filtering of data."""
+    out = data
+    statCount = STAT_COUNT
+    if match := re.search(r"\s[Tt](\d)+\s", message.content):
+        statCount = int(match.group(1))
+    if "reverse" in message.content:
+        out = list(reversed(out))
+        out = [x for x in out if x[1] <= out[statCount][1]]
+    else:
+        out = [x for x in out if x[1] >= out[statCount][1]]
+
+    return out
+
+
 async def UserStats(message: Message) -> None:
     """Get statistics for track additions.
 
@@ -16,53 +33,50 @@ async def UserStats(message: Message) -> None:
         message (Message): triggering message
     """
     data: list[UserDataEntry] = await GetUserData()
-    useReverse: bool = "reverse" not in message.content
+    stats: list = []
     username: str = str(message.author).split("#", maxsplit=1)[0]
     outStr: str = ""
     if "duration" in message.content:
-        outStr = await GetDuration(data, useReverse)
+        outStr, stats = await GetDuration(data)
     if "poster" in message.content:
-        outStr = await GetPosterCount(data)
+        outStr, stats = await GetPosterCount(data)
     if "mainstream" in message.content:
         if "artist" in message.content:
-            outStr = await GetMainstreamArtists(
+            outStr, stats = await GetMainstreamArtists(
                 data,
                 username,
-                useReverse,
                 "follower" in message.content,
             )
         else:
-            outStr = await GetMainstreamRating(
+            outStr, stats = await GetMainstreamRating(
                 data,
-                useReverse,
                 "follower" in message.content,
             )
     if "artist" in message.content and "mainstream" not in message.content:
-        outStr = await GetArtistCount(data, useReverse)
+        outStr, stats = await GetArtistCount(data)
     if "genre" in message.content:
-        outStr = await GetGenreCount(data, useReverse)
+        outStr, stats = await GetGenreCount(data)
     if "unlabeled" in message.content:
         mem = await GetMemory()
         artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
         outStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
     if "popularity" in message.content:
-        outStr = await GetPopularityRanking(
+        outStr, stats = await GetPopularityRanking(
             data,
-            useReverse,
             "follower" in message.content,
             "track" in message.content,
         )
-
+    stats = await FilterData(message, stats)
+    outStr = f"{outStr}:\n{'\n'.join([f'{x[0]}: {x[1]}' for x in stats])}"
     if outStr:
         await SendMessage(outStr, message, reply=True)
 
 
 async def GetPopularityRanking(
     data: list[UserDataEntry],
-    useReverse: bool,
     useFollowers: bool,
     useTracks: bool,
-) -> str:
+) -> tuple[str, list]:
     """Get data for who most popular artists/tracks are.
 
     Parameters
@@ -96,22 +110,17 @@ async def GetPopularityRanking(
                     0.25 * trackInfo["artist"]["popularity"]
                 )
 
-    popularity = sorted(popularity.items(), key=lambda x: x[1], reverse=useReverse)
-    popularity = (
-        [x for x in popularity if x[1] >= popularity[STAT_COUNT][1]]
-        if useReverse
-        else [x for x in popularity if x[1] <= popularity[STAT_COUNT][1]]
-    )
+    popularity = sorted(popularity.items(), key=lambda x: x[1])
+    popularity = [x for x in popularity if x[1] <= popularity[STAT_COUNT][1]]
     if len(popularity) > 2 * STAT_COUNT:
         popularity = popularity[: 2 * STAT_COUNT]
 
-    return "Popularity Rankings:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in popularity])
+    return "Popularity Rankings:", popularity
 
 
 async def GetGenreCount(
     data: list[UserDataEntry],
-    useReverse: bool,
-) -> str:
+) -> tuple[str, list]:
     """Get data for how many genre was added.
 
     Parameters
@@ -130,23 +139,13 @@ async def GetGenreCount(
     for track in [x for x in data if x.EntryStatus.WasSuccessful]:
         genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
     genreFreq = {x: genres.count(x) for x in set(genres)}
-    genreFreq = [
-        x for x in sorted(genreFreq.items(), key=lambda x: x[1], reverse=useReverse) if x[1] > 1
-    ]
-    genreFreq = (
-        [x for x in genreFreq if x[1] >= genreFreq[STAT_COUNT][1]]
-        if useReverse
-        else [x for x in genreFreq if x[1] <= genreFreq[STAT_COUNT][1]]
-    )
-    if len(genreFreq) > 2 * STAT_COUNT:
-        genreFreq = genreFreq[: 2 * STAT_COUNT]
-    return "Top Genres:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in genreFreq])
+    genreFreq = [x for x in sorted(genreFreq.items(), key=lambda x: x[1]) if x[1] > 1]
+    return "Genre Frequency:", genreFreq
 
 
 async def GetArtistCount(
     data: list[UserDataEntry],
-    useReverse: bool,
-) -> str:
+) -> tuple[str, list]:
     """Get data for how many times an artist was added.
 
     Parameters
@@ -166,22 +165,17 @@ async def GetArtistCount(
         artist: len([entry for entry in addedSongs if entry.Artist == artist])
         for artist in {x.Artist for x in data}
     }
-    addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=useReverse)
-    addFreq = (
-        [x for x in addFreq if x[1] >= addFreq[STAT_COUNT][1]]
-        if useReverse
-        else [x for x in addFreq if x[1] <= addFreq[STAT_COUNT][1]]
-    )
+    addFreq = sorted(addFreq.items(), key=lambda x: x[1])
+    addFreq = [x for x in addFreq if x[1] <= addFreq[STAT_COUNT][1]]
     if len(addFreq) > 2 * STAT_COUNT:
         addFreq = addFreq[: 2 * STAT_COUNT]
-    return "Top Artists:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
+    return "Artist Frequency", addFreq
 
 
 async def GetMainstreamRating(
     data: list[UserDataEntry],
-    useReverse: bool,
     useFollowers: bool,
-) -> str:
+) -> tuple[str, list]:
     """Get data for who the most mainstream poster is.
 
     Parameters
@@ -210,16 +204,14 @@ async def GetMainstreamRating(
             totalSongs += 1
         if totalSongs != 0:
             results[uname] = round(totalPopularity / totalSongs, 2)
-    cool = sorted(results.items(), key=lambda x: x[1], reverse=useReverse)
-    return "Mainstream Ratings:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in cool])
+    return "Mainstream Ratings:", sorted(results.items(), key=lambda x: x[1])
 
 
 async def GetMainstreamArtists(
     data: list[UserDataEntry],
     user: str,
-    useReverse: bool,
     useFollowers: bool,
-) -> str:
+) -> tuple[str, list]:
     """Get data for who the user's most mainstream artists.
 
     Parameters
@@ -247,20 +239,14 @@ async def GetMainstreamArtists(
                 if not useFollowers
                 else info["artist"]["followers"]["total"]
             )
-    popularityRanking = sorted(results.items(), key=lambda x: x[1], reverse=useReverse)
-    popularityRanking = (
-        [x for x in popularityRanking if x[1] >= popularityRanking[STAT_COUNT][1]]
-        if useReverse
-        else [x for x in popularityRanking if x[1] <= popularityRanking[STAT_COUNT][1]]
-    )
+    popularityRanking = sorted(results.items(), key=lambda x: x[1])
+    popularityRanking = [x for x in popularityRanking if x[1] <= popularityRanking[STAT_COUNT][1]]
     if len(popularityRanking) > 2 * STAT_COUNT:
         popularityRanking = popularityRanking[: 2 * STAT_COUNT]
-    return f"Mainstream Artists for {user}:\n" + "\n".join(
-        [f"{x[0]}: {x[1]}" for x in popularityRanking],
-    )
+    return f"Mainstream Artists for {user}:", popularityRanking
 
 
-async def GetPosterCount(data: list[UserDataEntry]) -> str:
+async def GetPosterCount(data: list[UserDataEntry]) -> tuple[str, list]:
     """Get data for how many songs a user added.
 
     Parameters
@@ -284,10 +270,10 @@ async def GetPosterCount(data: list[UserDataEntry]) -> str:
         for uname in {x.User for x in data}
     }
     addFreq = sorted(addFreq.items(), key=lambda x: x[1], reverse=True)
-    return "Top Posters:\n" + "\n".join([f"{x[0]}: {x[1]}" for x in addFreq])
+    return "Song Posters:", addFreq
 
 
-async def GetDuration(data: list[UserDataEntry], useReverse: bool) -> str:
+async def GetDuration(data: list[UserDataEntry]) -> tuple[str, list]:
     """Get data for how the longest/shortest song.
 
     Parameters
@@ -310,10 +296,4 @@ async def GetDuration(data: list[UserDataEntry], useReverse: bool) -> str:
         timed.items(),
         key=lambda x: x[1],
     )
-
-    return f"{'Shortest' if useReverse else 'Longest'}:\n- " + "\n- ".join(
-        [
-            f"{x[1] / 1000} seconds -> {x[0].TrackInfo}"
-            for x in (sortedTimes[:5] if useReverse else reversed(sortedTimes[-5:]))
-        ],
-    )
+    return "Track Duration (s):", [[x[0].TrackInfo, x[1] / 1000] for x in sortedTimes]
