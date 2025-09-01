@@ -38,20 +38,6 @@ async def UserStats(message: Message) -> None:
         outStr, stats = await GetDuration(data)
     if "poster" in message.content:
         outStr, stats = await GetPosterCount(data)
-    if "mainstream" in message.content:
-        if "artist" in message.content:
-            outStr, stats = await GetMainstreamArtists(
-                data,
-                username,
-                "follower" in message.content,
-            )
-        else:
-            outStr, stats = await GetMainstreamRating(
-                data,
-                "follower" in message.content,
-            )
-    if "artist" in message.content and "mainstream" not in message.content:
-        outStr, stats = await GetArtistCount(data)
     if "genre" in message.content:
         outStr, stats = await GetGenreCount(data)
     if "unlabeled" in message.content:
@@ -64,6 +50,22 @@ async def UserStats(message: Message) -> None:
             "follower" in message.content,
             "track" in message.content,
         )
+
+    if "mainstream" in message.content and "personal" in message.content:
+        outStr, stats = await GetPersonalMainstream(
+            data,
+            username,
+            "follower" in message.content,
+            "track" in message.content,
+        )
+    elif "mainstream" in message.content:
+        outStr, stats = await GetMainstreamRating(
+            data,
+            "follower" in message.content,
+        )
+    elif "artist" in message.content:
+        outStr, stats = await GetArtistCount(data)
+
     stats = await FilterData(message, stats)
     outStr = f"{outStr}\n{'\n'.join([f'{x[0]}: {x[1]}' for x in stats])}"
     if outStr:
@@ -198,10 +200,11 @@ async def GetMainstreamRating(
     return "Mainstream Ratings:", sorted(results.items(), key=lambda x: x[1])
 
 
-async def GetMainstreamArtists(
+async def GetPersonalMainstream(
     data: list[UserDataEntry],
     user: str,
     useFollowers: bool,
+    useTracks: bool,
 ) -> tuple[str, list]:
     """Get data for who the user's most mainstream artists.
 
@@ -224,12 +227,17 @@ async def GetMainstreamArtists(
     results = {}
     for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == user]:
         info = await GetFullInfo(entry.TrackId)
-        if info["artist"]["name"] not in results:
-            results[info["artist"]["name"]] = (
-                info["artist"]["popularity"]
-                if not useFollowers
-                else info["artist"]["followers"]["total"]
+        if useTracks:
+            results[entry.TrackInfo] = (0.75 * info["track"]["popularity"]) + (
+                0.25 * info["artist"]["popularity"]
             )
+        else:
+            if info["artist"]["name"] not in results:
+                results[info["artist"]["name"]] = (
+                    info["artist"]["popularity"]
+                    if not useFollowers
+                    else info["artist"]["followers"]["total"]
+                )
     return f"Mainstream Artists for {user}:", sorted(results.items(), key=lambda x: x[1])
 
 
