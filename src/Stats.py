@@ -15,7 +15,7 @@ async def FilterData(message: Message, data: list[list]) -> list:
     """Perform common filtering of data."""
     out = data
     statCount = STAT_COUNT
-    if match := re.search(r"\s[Tt](\d)+\s", message.content):
+    if match := re.search(r"\s[Tt](\d+)", message.content):
         statCount = int(match.group(1))
     if "reverse" in message.content:
         out = list(reversed(out))
@@ -166,9 +166,7 @@ async def GetArtistCount(
         for artist in {x.Artist for x in data}
     }
     addFreq = sorted(addFreq.items(), key=lambda x: x[1])
-    addFreq = [x for x in addFreq if x[1] <= addFreq[STAT_COUNT][1]]
-    if len(addFreq) > 2 * STAT_COUNT:
-        addFreq = addFreq[: 2 * STAT_COUNT]
+    addFreq = [x for x in addFreq if x[1] <= addFreq[STAT_COUNT][1] and x[0] != 0]
     return "Artist Frequency", addFreq
 
 
