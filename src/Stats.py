@@ -1,5 +1,6 @@
 """Functions to get stats."""
 
+import math
 import re
 
 from discord import Message
@@ -67,7 +68,7 @@ async def UserStats(message: Message) -> None:
         outStr, stats = await GetArtistCount(data)
 
     stats = await FilterData(message, stats)
-    outStr = f"{outStr}\n{'\n'.join([f'{x[0]}: {x[1]}' for x in stats])}"
+    outStr = f"{outStr}\n{'\n'.join([f'{x[0]} -> {x[1]}' for x in stats])}"
     if outStr:
         await SendMessage(outStr, message, reply=True)
 
@@ -291,4 +292,7 @@ async def GetDuration(data: list[UserDataEntry]) -> tuple[str, list]:
         timed.items(),
         key=lambda x: x[1],
     )
-    return "Track Duration (min):", [[round(x[1] / 60000, 2), x[0].TrackInfo] for x in sortedTimes]
+    return "Track Duration (min):", [
+        [f"{math.floor(x[1] / 60000):02d}:{(x[1] % 60000) / 1000:02d}", x[0].TrackInfo]
+        for x in sortedTimes
+    ]
