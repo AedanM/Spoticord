@@ -86,7 +86,7 @@ class UserDataEntry:
         UserDataEntry
             instance of user data entry
         """
-        dataFields = list(csv.reader([s], delimiter=",", quotechar='"'))[0]
+        dataFields = list(csv.reader([s], delimiter=SEPARATOR, quotechar='"'))[0]
         return cls.FromList(dataFields)
 
     @property
@@ -211,7 +211,7 @@ async def LoadUserData() -> None:
         with USER_DATA_FILE.open(encoding="utf-8") as csvFile:
             USER_DATA = [
                 UserDataEntry.FromList(x)
-                for idx, x in enumerate(csv.reader(csvFile, delimiter=",", quotechar='"'))
+                for idx, x in enumerate(csv.reader(csvFile, delimiter=SEPARATOR, quotechar='"'))
                 if idx != 0 and x != []
             ]
 

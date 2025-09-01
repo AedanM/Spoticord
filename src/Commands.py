@@ -172,6 +172,7 @@ COMMANDS = {
     "stats": UserStats,
     "update": Update,
     "userData": UserData,
+    "force": lambda _x: ...,
 }
 
 
