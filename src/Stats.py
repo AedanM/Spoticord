@@ -291,4 +291,4 @@ async def GetDuration(data: list[UserDataEntry]) -> tuple[str, list]:
         timed.items(),
         key=lambda x: x[1],
     )
-    return "Track Duration (s):", [[round(x[1] / 1000), x[0].TrackInfo] for x in sortedTimes]
+    return "Track Duration (min):", [[round(x[1] / 60000, 2), x[0].TrackInfo] for x in sortedTimes]
