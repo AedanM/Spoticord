@@ -15,7 +15,7 @@ from SpotifyAccess import AddToPlaylist, ForceTrack
 from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
 
 
-@tasks.loop(seconds=60)
+@tasks.loop(seconds=300)
 async def Poke() -> None:
     """Poke chat to see whats going on."""
     today: dt.datetime = dt.datetime.today()
