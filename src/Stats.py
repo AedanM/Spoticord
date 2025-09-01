@@ -50,6 +50,7 @@ async def UserStats(message: Message) -> None:
             data,
             useReverse,
             "follower" in message.content,
+            "track" in message.content,
         )
 
     if outStr:
@@ -60,8 +61,9 @@ async def GetPopularityRanking(
     data: list[UserDataEntry],
     useReverse: bool,
     useFollowers: bool,
+    useTracks: bool,
 ) -> str:
-    """Get data for who most popular artists are.
+    """Get data for who most popular artists/tracks are.
 
     Parameters
     ----------
@@ -71,6 +73,8 @@ async def GetPopularityRanking(
         flip data
     useFollowers: bool
         use follower data instead
+    useTracks: bool
+        use track data instead
 
     Returns
     -------
@@ -81,11 +85,17 @@ async def GetPopularityRanking(
     for track in [x for x in data if x.EntryStatus.WasSuccessful]:
         trackInfo = await GetFullInfo(track.TrackId)
         if trackInfo["artist"]["name"] not in popularity:
-            popularity[trackInfo["artist"]["name"]] = (
-                trackInfo["artist"]["popularity"]
-                if not useFollowers
-                else trackInfo["artist"]["followers"]["total"]
-            )
+            if not useTracks:
+                popularity[trackInfo["artist"]["name"]] = (
+                    trackInfo["artist"]["popularity"]
+                    if not useFollowers
+                    else trackInfo["artist"]["followers"]["total"]
+                )
+            else:
+                popularity[track.TrackInfo] = (0.75 * trackInfo["track"]["popularity"]) + (
+                    0.25 * trackInfo["artist"]["popularity"]
+                )
+
     popularity = sorted(popularity.items(), key=lambda x: x[1], reverse=useReverse)
     popularity = (
         [x for x in popularity if x[1] >= popularity[STAT_COUNT][1]]
