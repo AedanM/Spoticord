@@ -75,8 +75,8 @@ async def ReAnnounce() -> None:
         await SendMessage("I'm back 😎", channel, useChannel=True)
     else:
         print("Can't find channel for announce")
-    Poke.start()  # type: ignore[reportFunctionMemberAccess]
-    SpecialTimes.start()  # type: ignore[reportFunctionMemberAccess]
+    Poke.start()  # pyright: ignore[reportFunctionMemberAccess]
+    SpecialTimes.start()  # pyright: ignore[reportFunctionMemberAccess]
 
 
 @DISCORD_CLIENT.listen("on_message")
