@@ -2,6 +2,7 @@
 
 import math
 import re
+from statistics import median
 
 from discord import Message
 
@@ -65,6 +66,7 @@ async def UserStats(message: Message) -> None:
         outStr, stats = await GetMainstreamRating(
             data,
             "follower" in message.content,
+            "median" in message.content,
         )
     elif "artist" in message.content:
         outStr, stats = await GetArtistCount(data)
@@ -181,6 +183,7 @@ async def GetArtistCount(
 async def GetMainstreamRating(
     data: list[UserDataEntry],
     useFollowers: bool,
+    useMedian: bool,
 ) -> tuple[str, list]:
     """Get data for who the most mainstream poster is.
 
@@ -200,16 +203,18 @@ async def GetMainstreamRating(
     """
     results = {}
     for uname in {x.User for x in data}:
-        totalSongs = 0
-        totalPopularity = 0
+        totalPopularity = []
         for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == uname]:
             t = await GetFullInfo(entry.TrackId)
-            totalPopularity += (
-                t["artist"]["popularity"] if not useFollowers else t["artist"]["followers"]["total"]
+            totalPopularity.append(
+                t["artist"]["popularity"]
+                if not useFollowers
+                else t["artist"]["followers"]["total"],
             )
-            totalSongs += 1
-        if totalSongs != 0:
-            results[uname] = round(totalPopularity / totalSongs, 2)
+        if totalPopularity != 0 and not useMedian:
+            results[uname] = round(sum(totalPopularity) / len(totalPopularity), 2)
+        elif totalPopularity:
+            results[uname] = median(totalPopularity)
     return "Mainstream Ratings:", sorted(results.items(), key=lambda x: x[1])
 
 
