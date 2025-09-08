@@ -89,7 +89,7 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
     if repeat:
         result = Status.Repeat
         trackId = prevUser
-        return result, (trackId, "")
+        return result, (trackId, "", "", "")
     addChance, title, artist, uri, regions = await GetDetails(trackId)
 
     if result == Status.Default and not IsInRegion(regions):
@@ -170,3 +170,20 @@ async def GetFullInfo(trackId: str) -> dict[str, dict]:
         print(f"Saving Memory on {trackId}")
         await SaveMemory()
     return {"track": trackInfo, "artist": artistInfo}
+
+
+async def GetArtistInfo(artistId: str) -> dict[str, dict]:
+    memory: dict[str, dict] = await GetMemory()
+    updatedMemory: bool = False
+    artistInfo: dict = {}
+
+    if artistId in memory["Cache"]["artists"]:
+        artistInfo = memory["Cache"]["artists"][artistId]
+    else:
+        artistInfo = SPOTIFY_CLIENT.artist(artistId)
+        memory["Cache"]["artists"][artistId] = artistInfo
+        updatedMemory = True
+
+    if updatedMemory:
+        await SaveMemory()
+    return {"artist": artistInfo}

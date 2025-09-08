@@ -16,7 +16,7 @@ from Defines import (
     GetUserData,
     SaveConfig,
 )
-from SpotifyAccess import GetAllTracks
+from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
 from Utility import SendMessage
 
@@ -58,8 +58,9 @@ async def OnTheList(message: Message) -> None:
                 defaulted = True
                 rating = 1.0
             CONFIG["Vibes"][artistID] = rating
+            info = (await GetArtistInfo(artistID))["artist"]
             await SendMessage(
-                f"{artistID} logged at {rating}{' (defaulted)' if defaulted else ''}",
+                f"{info['name']} logged at {rating}{' (defaulted)' if defaulted else ''}",
                 message,
             )
             await SaveConfig()
@@ -162,6 +163,23 @@ async def Kill(message: Message) -> None:
     sys.exit(0)
 
 
+async def CacheArtist(message: Message) -> None:
+    """Get info on an artist from their ID.
+
+    Args:
+        message (Message): triggering message
+
+    """
+    for artistID in re.findall(CONFIG["Regex"]["artist"], message.content):
+        artist = (await GetArtistInfo(artistID))["artist"]
+        await SendMessage(
+            f"{artist['name']} - "
+            f"Followers: {artist['followers']['total']} - "
+            f"Popularity: {artist['popularity']}",
+            message,
+        )
+
+
 COMMANDS = {
     "blame": Blame,
     "check": CheckTracks,
@@ -172,6 +190,7 @@ COMMANDS = {
     "stats": UserStats,
     "update": Update,
     "userData": UserData,
+    "cacheArtist": CacheArtist,
     "force": lambda _x: ...,
 }
 
