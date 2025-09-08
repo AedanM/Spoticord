@@ -105,6 +105,8 @@ async def MessageHandler(message: Message) -> None:
                 if "!force" in message.content[:7]
                 else await AddToPlaylist(trackID, playlistID, isTesting)
             )
+            if status == Status.Repeat:
+                username = trackInfo[0]
             if status.WasSuccessful:
                 await NotifyPlaylistLength(message)
             if response := GetResponse(status, username, isTesting):

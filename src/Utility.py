@@ -9,7 +9,7 @@ def Chunk(toBeSplit, chunkSize) -> list:
     return list(iter(lambda: tuple(islice(toBeSplit, chunkSize)), ()))
 
 
-async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False):
+async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False) -> None:
     memory = await GetMemory()
     channelId = contextObj.channel.id if not useChannel else contextObj.id
     for message in Chunk(output, 2000):
@@ -24,7 +24,7 @@ async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool 
         await SaveMemory()
 
 
-async def DadMode(message):
+async def DadMode(message) -> None:
     for dadCommand in CONFIG["DadCommands"]:
         if subject := re.search(dadCommand["regex"], message.content.lower()):
             subject = subject.group(1)
@@ -33,7 +33,7 @@ async def DadMode(message):
             )
 
 
-async def NotifyPlaylistLength(response):
+async def NotifyPlaylistLength(response) -> None:
     playlistLen = len([x for x in await GetUserData() if x.EntryStatus.WasSuccessful])
     if playlistLen % CONFIG["UpdateInterval"] == 0:
         await SendMessage(f"This was song #{playlistLen} 🙌", response, reply=True)

@@ -45,7 +45,7 @@ def GetResponse(result: Status, username: str, isTesting: bool) -> str:
     match result:
         case Status.Repeat:
             s = (
-                "Already in the playlist, @everyone mock them"
+                f"Already in the playlist (added by {...}), @everyone mock them"
                 if not isTesting
                 else "Try again bucko, already added"
             )
