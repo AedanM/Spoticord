@@ -81,9 +81,9 @@ async def GetOnTheList() -> tuple[str, list]:
     mem = await GetMemory()
     artistInfo = mem["Cache"]["artists"]
     out = []
-    for artistID, rating in CONFIG["Vibes"]:
+    for artistID, rating in CONFIG["Vibes"].items():
         artist = artistInfo.get(artistID, None)
-        out.append((artist["name"], rating))
+        out.append((artist["name"] if artist else artistID, float(rating)))
     return "On The List:", sorted(out, key=lambda x: x[1])
 
 
