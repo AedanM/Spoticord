@@ -75,8 +75,8 @@ async def ReAnnounce() -> None:
         await SendMessage("I'm back 😎", channel, useChannel=True)
     else:
         print("Can't find channel for announce")
-    Poke.start()  # type: ignore[reportFunctionMemberAccess]
-    SpecialTimes.start()  # type: ignore[reportFunctionMemberAccess]
+    Poke.start()  # pyright: ignore[reportFunctionMemberAccess]
+    SpecialTimes.start()  # pyright: ignore[reportFunctionMemberAccess]
 
 
 @DISCORD_CLIENT.listen("on_message")
@@ -105,6 +105,8 @@ async def MessageHandler(message: Message) -> None:
                 if "!force" in message.content[:7]
                 else await AddToPlaylist(trackID, playlistID, isTesting)
             )
+            if status == Status.Repeat:
+                username = trackInfo[0]
             if status.WasSuccessful:
                 await NotifyPlaylistLength(message)
             if response := GetResponse(status, username, isTesting):

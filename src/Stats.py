@@ -5,7 +5,7 @@ import re
 
 from discord import Message
 
-from Defines import GetMemory, GetUserData, UserDataEntry
+from Defines import CONFIG, GetMemory, GetUserData, UserDataEntry
 from SpotifyAccess import GetFullInfo
 from Utility import SendMessage
 
@@ -35,6 +35,8 @@ async def UserStats(message: Message) -> None:
     stats: list = []
     username: str = str(message.author).split("#", maxsplit=1)[0]
     outStr: str = ""
+    if "onTheList" in message.content:
+        outStr, stats = await GetOnTheList()
     if "duration" in message.content:
         outStr, stats = await GetDuration(data)
     if "poster" in message.content:
@@ -71,6 +73,10 @@ async def UserStats(message: Message) -> None:
     outStr = f"{outStr}\n{'\n'.join([f'{x[0]} -> {x[1]}' for x in stats])}"
     if outStr:
         await SendMessage(outStr, message, reply=True)
+
+
+async def GetOnTheList() -> tuple[str, list]:
+    return "On The List:", sorted(CONFIG["Vibes"], key=lambda x: x[1])
 
 
 async def GetPopularityRanking(

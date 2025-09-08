@@ -15,7 +15,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from yaml import Dumper, dump
 from yaml import safe_load as load
 
-Dumper.ignore_aliases = lambda *_args: True  # type: ignore[reportAttributeAccessIssue]
+Dumper.ignore_aliases = lambda *_args: True  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class Status(StrEnum):
