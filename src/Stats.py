@@ -76,7 +76,13 @@ async def UserStats(message: Message) -> None:
 
 
 async def GetOnTheList() -> tuple[str, list]:
-    return "On The List:", sorted(CONFIG["Vibes"], key=lambda x: x[1])
+    mem = await GetMemory()
+    artistInfo = mem["Cache"]["artists"]
+    out = []
+    for artistID, rating in CONFIG["Vibes"]:
+        artist = artistInfo.get(artistID, None)
+        out.append((artist["name"], rating))
+    return "On The List:", sorted(out, key=lambda x: x[1])
 
 
 async def GetPopularityRanking(
