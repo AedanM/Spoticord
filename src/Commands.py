@@ -8,8 +8,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
-from discord import File, Message
-
 from Defines import (
     COMMAND_KEY,
     CONFIG,
@@ -18,6 +16,7 @@ from Defines import (
     GetUserData,
     SaveConfig,
 )
+from discord import File, Message
 from SpotifyAccess import GetAllTracks, GetArtistInfo, GetFullInfo
 from Stats import UserStats
 from Utility import SendMessage
@@ -99,7 +98,9 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted([str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]])
+    commands = sorted(
+        [str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]]
+    )
     await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
 
 
@@ -110,20 +111,31 @@ async def UserData(message: Message) -> None:
             message (Message): triggering message
     _
     """
-    await SendMessage("Here is the user data file", message, True)
-    if "popularity" not in message:
+    await SendMessage("Generating the user data file", message, True)
+    if "popularity" not in message.content:
         await message.reply(file=File(USER_DATA_FILE))
     else:
         df = pd.read_csv(USER_DATA_FILE)
 
         async def PopularityRanking(track: str) -> float:
-            trackInfo = await GetFullInfo(track)
-            return (0.75 * trackInfo["track"]["popularity"]) + (
-                0.25 * trackInfo["artist"]["popularity"]
-            )
+            try:
+                trackInfo = await GetFullInfo(track)
+                retVal = (0.75 * trackInfo["track"]["popularity"]) + (
+                    0.25 * trackInfo["artist"]["popularity"]
+                )
+            except:
+                retVal = -1.0
+            return retVal
 
-        df["popularity"] = [PopularityRanking(x) for x in df["track"]]
-        df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+        df["popularity"] = [(await PopularityRanking(x)) for x in df["track"]]
+        df.to_csv(
+            TEMP_USER_DATA_FILE,
+            sep=",",
+            encoding="utf-8",
+            index=False,
+            header=True,
+        )
+        await message.reply(file=File(TEMP_USER_DATA_FILE))
 
 
 async def Blame(message: Message) -> None:
@@ -135,7 +147,9 @@ async def Blame(message: Message) -> None:
     """
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
-            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+            x
+            for x in await GetUserData()
+            if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
             await SendMessage(f"{entry}", message, reply=True)
 
