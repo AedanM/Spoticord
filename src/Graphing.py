@@ -1,14 +1,16 @@
+import re
 from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
 from discord import Message
 
-from Defines import TEMP_USER_DATA_FILE, USER_DATA_FILE, Status
+from Defines import CONFIG, TEMP_USER_DATA_FILE, USER_DATA_FILE, Status
 from SpotifyAccess import GetFullInfo
 
-GRAPHS = {"popularityTrend", "popularity", "progress", "users"}
+GRAPHS = {"popularityTrend", "popularityAverage", "popularity", "progress", "users"}
 
 
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
@@ -19,23 +21,36 @@ def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
 
 
 async def PopularityRanking(track: str) -> float:
-    trackInfo = await GetFullInfo(track)
-    return (0.75 * trackInfo["track"]["popularity"]) + (0.25 * trackInfo["artist"]["popularity"])
+    try:
+        trackInfo = await GetFullInfo(track)
+        val = (0.75 * trackInfo["track"]["popularity"]) + (0.25 * trackInfo["artist"]["popularity"])
+    except:
+        val = -1.0
+    return val
 
 
-def PrepDataFrame() -> pd.DataFrame:
+def AvgPopularityAtRow(frame: pd.DataFrame, row: int) -> float:
+    trackRow = frame.iloc[row]
+    trackIdx = trackRow.name
+    prevEntrys = frame.loc[frame.index <= trackIdx]
+    return round(sum(prevEntrys["popularity"]) / len(prevEntrys.index), 2)
+
+
+async def PrepDataFrame() -> pd.DataFrame:
     df = pd.read_csv(USER_DATA_FILE)
 
-    df["popularity"] = [PopularityRanking(x) for x in df["track"]]
+    df["popularity"] = [await PopularityRanking(x) for x in df["track"]]
     df["userCount"] = [UserTrackNum(df, x) for x in df["track"]]
+    df["average"] = [AvgPopularityAtRow(df, x) for x in df.index]
     df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
 
     return df
 
 
-def Graphs(message: Message) -> list[Path]:
-    full = PrepDataFrame()
+async def Graphs(message: Message) -> list[Path]:
+    full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
+    valid.reset_index(drop=True)
     graphs: dict[str, Callable] = {
         "popularityTrend": lambda: px.scatter(
             valid,
@@ -43,12 +58,20 @@ def Graphs(message: Message) -> list[Path]:
             y="popularity",
             color="user",
             trendline="lowess",
+            color_discrete_map=CONFIG["UserColors"],
         ),
         "popularity": lambda: px.scatter(
             valid,
-            x="count",
+            x="userCount",
             y="popularity",
             color="user",
+            trendline="lowess",
+            color_discrete_map=CONFIG["UserColors"],
+        ),
+        "popularityAverage": lambda: px.scatter(
+            valid,
+            x=valid.index,
+            y="average",
             trendline="lowess",
         ),
         "progress": lambda: px.scatter(
@@ -56,19 +79,22 @@ def Graphs(message: Message) -> list[Path]:
             x="time",
             y=valid.index,
             color="user",
+            color_discrete_map=CONFIG["UserColors"],
         ),
         "users": lambda: px.pie(
-            valid,
-            values="tracks",
+            pd.DataFrame({"user": valid["user"]}).value_counts().reset_index(name="count"),
             names="user",
+            values="count",
+            color="user",
+            color_discrete_map=CONFIG["UserColors"],
         ),
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
+    figs: list = []
     for graph, func in graphs.items():
-        if graph in message.Content or " all" in message.content:
-            fig = func()
-            dst = USER_DATA_FILE.parent / "graphs" / f"{graph}.png"
-            fig.write_image(dst)
-            made.append(dst)
+        if re.search(rf"\s{graph}\s?$", message.content) or " all" in message.content:
+            figs.append(func())
+            made.append(USER_DATA_FILE.parent / "graphs" / f"{graph}.png")
+    pio.write_images(fig=figs, file=made, width=1920, height=1080, scale=2)
     return made

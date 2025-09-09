@@ -12,6 +12,7 @@ dependencies = [
     "pandas",
     "plotly",
     "kaleido",
+    "statsmodels"
 ]
 
 [tool.ruff]

@@ -7,7 +7,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-import pandas as pd
+from discord import File, Message
+
 from Defines import (
     COMMAND_KEY,
     CONFIG,
@@ -16,7 +17,6 @@ from Defines import (
     GetUserData,
     SaveConfig,
 )
-from discord import File, Message
 from Graphing import GRAPHS, Graphs, PrepDataFrame
 from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
@@ -41,7 +41,8 @@ async def Graph(message: Message) -> None:
     Args:
         message (Message): triggering message
     """
-    created = Graphs(message)
+    await message.reply("Generating graphs, this may take a moment...")
+    created = await Graphs(message)
     files = [File(x) for x in created]
     if files:
         await message.reply(files=files)
@@ -130,7 +131,7 @@ async def UserData(message: Message) -> None:
     if "popularity" not in message.content:
         await message.reply(file=File(USER_DATA_FILE))
     else:
-        PrepDataFrame()
+        await PrepDataFrame()
         await message.reply(file=File(TEMP_USER_DATA_FILE))
 
 
@@ -143,9 +144,7 @@ async def Blame(message: Message) -> None:
     """
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
-            x
-            for x in await GetUserData()
-            if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
             await SendMessage(f"{entry}", message, reply=True)
 
