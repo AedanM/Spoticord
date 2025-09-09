@@ -15,7 +15,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from yaml import Dumper, dump
 from yaml import safe_load as load
 
-Dumper.ignore_aliases = lambda *_args: True  # pyright: ignore[reportAttributeAccessIssue]
+Dumper.ignore_aliases = lambda *_args: True  # pyright: ignore[reportAttributeAccessIssue] #ty:ignore
 
 
 class Status(StrEnum):
@@ -140,6 +140,7 @@ CACHE_FILE: Path = Path("data/cache.yml")
 CONFIG_FILE: Path = Path("data/conf.yml" if len(sys.argv) < 2 else sys.argv[1])
 MEMORY_FILE: Path = Path("data/memory.yml" if len(sys.argv) < 3 else sys.argv[2])
 USER_DATA_FILE: Path = Path("data/user_data.csv")
+TEMP_USER_DATA_FILE: Path = Path("data/user_data_TEMP.csv")
 
 CACHE_LOCK: asyncio.Lock = asyncio.Lock()
 CONFIG_LOCK: asyncio.Lock = asyncio.Lock()

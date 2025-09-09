@@ -45,9 +45,7 @@ async def UserStats(message: Message) -> None:
     if "genre" in message.content:
         outStr, stats = await GetGenreCount(data)
     if "unlabeled" in message.content:
-        mem = await GetMemory()
-        artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
-        outStr = "Missing Genres:\n" + "\n".join([x["name"] for x in artists])
+        outStr, stats = await GetUnlabeled()
     if "popularity" in message.content:
         outStr, stats = await GetPopularityRanking(
             data,
@@ -78,7 +76,15 @@ async def UserStats(message: Message) -> None:
         await SendMessage(outStr, message, reply=True)
 
 
+async def GetUnlabeled() -> tuple[str, list]:
+    """Get non genre-ed artists."""
+    mem = await GetMemory()
+    artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
+    return "Missing Genres:", [x["name"] for x in artists]
+
+
 async def GetOnTheList() -> tuple[str, list]:
+    """Return the current list."""
     mem = await GetMemory()
     artistInfo = mem["Cache"]["artists"]
     out = []

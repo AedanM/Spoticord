@@ -7,16 +7,18 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+import pandas as pd
 from discord import File, Message
 
 from Defines import (
     COMMAND_KEY,
     CONFIG,
+    TEMP_USER_DATA_FILE,
     USER_DATA_FILE,
     GetUserData,
     SaveConfig,
 )
-from SpotifyAccess import GetAllTracks, GetArtistInfo
+from SpotifyAccess import GetAllTracks, GetArtistInfo, GetFullInfo
 from Stats import UserStats
 from Utility import SendMessage
 
@@ -109,7 +111,19 @@ async def UserData(message: Message) -> None:
     _
     """
     await SendMessage("Here is the user data file", message, True)
-    await message.reply(file=File(USER_DATA_FILE))
+    if "popularity" not in message:
+        await message.reply(file=File(USER_DATA_FILE))
+    else:
+        df = pd.read_csv(USER_DATA_FILE)
+
+        async def PopularityRanking(track: str) -> float:
+            trackInfo = await GetFullInfo(track)
+            return (0.75 * trackInfo["track"]["popularity"]) + (
+                0.25 * trackInfo["artist"]["popularity"]
+            )
+
+        df["popularity"] = [PopularityRanking(x) for x in df["track"]]
+        df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
 
 
 async def Blame(message: Message) -> None:
