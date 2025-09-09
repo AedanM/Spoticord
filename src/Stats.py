@@ -214,7 +214,7 @@ async def GetMainstreamRating(
                 else t["artist"]["followers"]["total"],
             )
         if useQuantiles:
-            results[uname] = ", ".join(quantiles(popularity))
+            results[uname] = "[" + ", ".join([str(x) for x in quantiles(popularity)]) + "]"
         elif popularity and useMedian:
             results[uname] = median(popularity)
         else:
