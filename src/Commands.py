@@ -18,7 +18,8 @@ from Defines import (
     GetUserData,
     SaveConfig,
 )
-from SpotifyAccess import GetAllTracks, GetArtistInfo, GetFullInfo
+from Graphing import GRAPHS, Graphs, PrepDataFrame
+from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
 from Utility import SendMessage
 
@@ -31,7 +32,20 @@ STATS = [
     "mainstream personal",
     "popularity",
     "posters",
+    "graph",
 ]
+
+
+async def Graph(message: Message) -> None:
+    """Render stats graphs.
+
+    Args:
+        message (Message): triggering message
+    """
+    created = Graphs(message)
+    files = [File(x) for x in created]
+    if files:
+        await message.reply(files=files)
 
 
 async def OnTheList(message: Message) -> None:
@@ -99,7 +113,10 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted([str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]])
+    commands = sorted(
+        [str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]]
+        + [f"graph {y}" for y in GRAPHS],
+    )
     await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
 
 
@@ -114,16 +131,8 @@ async def UserData(message: Message) -> None:
     if "popularity" not in message:
         await message.reply(file=File(USER_DATA_FILE))
     else:
-        df = pd.read_csv(USER_DATA_FILE)
-
-        async def PopularityRanking(track: str) -> float:
-            trackInfo = await GetFullInfo(track)
-            return (0.75 * trackInfo["track"]["popularity"]) + (
-                0.25 * trackInfo["artist"]["popularity"]
-            )
-
-        df["popularity"] = [PopularityRanking(x) for x in df["track"]]
-        df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+        PrepDataFrame()
+        await message.reply(file=File(TEMP_USER_DATA_FILE))
 
 
 async def Blame(message: Message) -> None:
@@ -205,6 +214,7 @@ COMMANDS = {
     "update": Update,
     "userData": UserData,
     "cacheArtist": CacheArtist,
+    "graph": Graph,
     "force": lambda _x: ...,
 }
 
