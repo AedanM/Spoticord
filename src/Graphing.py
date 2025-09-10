@@ -111,6 +111,38 @@ async def Graphs(message: Message) -> list[Path]:
             color="user",
             color_discrete_map=CONFIG["UserColors"],
         ),
+        "unique": lambda: px.bar(
+            pd.DataFrame(
+                {
+                    "user": list(users),
+                    "uniqueness": [
+                        valid[valid["user"] == user]["artist"].nunique()
+                        / valid[valid["user"] == user].shape[0]
+                        for user in users
+                    ],
+                },
+            ),
+            x="user",
+            y="uniqueness",
+            color="user",
+            color_discrete_map=CONFIG["UserColors"],
+        ),
+        "totals": lambda: px.box(
+            valid,
+            x="user",
+            log_y=useFollowers,
+            y="popularity" if not useFollowers else "followers",
+            color="user",
+            color_discrete_map=CONFIG["UserColors"],
+            points="all",
+        ),
+        "heat": lambda: px.density_heatmap(
+            valid,
+            x=valid.index,
+            y="popularity",
+            nbinsx=50,
+            nbinsy=10,
+        ),
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
