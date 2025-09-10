@@ -10,7 +10,7 @@ from discord import Message
 from Defines import CONFIG, TEMP_USER_DATA_FILE, USER_DATA_FILE, Status
 from SpotifyAccess import GetFullInfo
 
-GRAPHS = {"popularityTrend", "popularityAverage", "popularity", "progress", "users"}
+GRAPHS = {"popularityTrend", "popularityAverage", "popularity", "progress", "users", "unique"}
 
 
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
@@ -50,6 +50,7 @@ async def PrepDataFrame() -> pd.DataFrame:
 async def Graphs(message: Message) -> list[Path]:
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
+    users = set(valid["user"])
     valid.reset_index(drop=True)
     graphs: dict[str, Callable] = {
         "popularityTrend": lambda: px.scatter(
@@ -85,6 +86,22 @@ async def Graphs(message: Message) -> list[Path]:
             pd.DataFrame({"user": valid["user"]}).value_counts().reset_index(name="count"),
             names="user",
             values="count",
+            color="user",
+            color_discrete_map=CONFIG["UserColors"],
+        ),
+        "unique": lambda: px.bar(
+            pd.DataFrame(
+                {
+                    "user": list(users),
+                    "uniqueness": [
+                        valid[valid["user"] == user]["artist"].nunique()
+                        / valid[valid["user"] == user].shape[0]
+                        for user in users
+                    ],
+                },
+            ),
+            x="user",
+            y="uniqueness",
             color="user",
             color_discrete_map=CONFIG["UserColors"],
         ),
