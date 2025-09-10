@@ -18,6 +18,7 @@ GRAPHS: list[str] = [
     "users",
     "totals",
     "heat",
+    "unique",
 ]
 
 
@@ -67,6 +68,7 @@ async def PrepDataFrame() -> pd.DataFrame:
 async def Graphs(message: Message) -> list[Path]:
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
+    users = set(valid["user"])
     valid.reset_index(drop=True)
     useFollowers = " followers" in message.content
     graphs: dict[str, Callable] = {
@@ -108,22 +110,6 @@ async def Graphs(message: Message) -> list[Path]:
             values="count",
             color="user",
             color_discrete_map=CONFIG["UserColors"],
-        ),
-        "totals": lambda: px.box(
-            valid,
-            x="user",
-            log_y=useFollowers,
-            y="popularity" if not useFollowers else "followers",
-            color="user",
-            color_discrete_map=CONFIG["UserColors"],
-            points="all",
-        ),
-        "heat": lambda: px.density_heatmap(
-            valid,
-            x=valid.index,
-            y="popularity",
-            nbinsx=50,
-            nbinsy=10,
         ),
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
