@@ -83,6 +83,14 @@ async def PrepUserData(df: pd.DataFrame) -> pd.DataFrame:
     ]
     users["genre_ratio"] = users["genres"].apply(GetUniqueRatio)
     users["artist_ratio"] = users["artists"].apply(GetUniqueRatio)
+    users["average_popularity"] = [
+        sum(df[df["user"] == user]["popularity"]) for user in users["name"]
+    ]
+    users["overall_score"] = [
+        users[users["name"] == name]["artist_ratio"] * users[users["name"] == name]["genre_ratio"]
+        - (abs(50 - users[users["name"] == name]["average_popularity"]) * 0.01)
+        for name in users["names"]
+    ]
     return users
 
 
@@ -145,6 +153,13 @@ async def Graphs(message: Message) -> list[Path]:
             x="names",
             y="genre_ratio",
             color="names",
+            color_discrete_map=CONFIG["UserColors"],
+        ),
+        "rating": lambda: px.bar(
+            users,
+            x="name",
+            y="overall_score",
+            color="name",
             color_discrete_map=CONFIG["UserColors"],
         ),
         "totals": lambda: px.box(
