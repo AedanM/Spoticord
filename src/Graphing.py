@@ -150,6 +150,7 @@ async def Graphs(message: Message) -> list[Path]:
     for graph, func in graphs.items():
         if graph in message.content or " all" in message.content:
             figs.append(func())
+            figs[-1].update_layout(xaxis={"categoryorder": "total ascending"})
             print(f"generated {graph}")
             made.append(USER_DATA_FILE.parent / "graphs" / f"{graph}.png")
     pio.write_images(fig=figs, file=made, width=960, height=540, scale=2)
