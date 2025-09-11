@@ -16,8 +16,9 @@ from Defines import (
     USER_DATA_FILE,
     GetUserData,
     SaveConfig,
+    Status,
 )
-from Graphing import GRAPHS, Graphs, PrepDataFrame
+from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
 from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
 from Utility import SendMessage
@@ -132,10 +133,15 @@ async def UserData(message: Message) -> None:
     _
     """
     await SendMessage("Generating the user data file", message, True)
-    if "popularity" not in message.content:
+    if "popularity" not in message.content and "users" not in message.content:
         await message.reply(file=File(USER_DATA_FILE))
+    elif "users" in message.content:
+        df = await PrepDataFrame()
+        valid = df.loc[df["result"] == Status.Added]
+        await PrepUserData(valid, True)
+        await message.reply(file=File(TEMP_USER_DATA_FILE))
     else:
-        await PrepDataFrame()
+        await PrepDataFrame(True)
         await message.reply(file=File(TEMP_USER_DATA_FILE))
 
 
