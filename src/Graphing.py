@@ -47,10 +47,32 @@ async def PrepDataFrame() -> pd.DataFrame:
     return df
 
 
+def GetUniqueRatio(data: pd.DataFrame) -> float:
+    return len(set(data)) / len(data) if len(data) > 0 else 0
+
+
+async def PrepUserData(df: pd.DataFrame) -> pd.DataFrame:
+    users = pd.DataFrame({"names": list(set(df["user"]))})
+    users["artists"] = [df[df["user"] == user]["artist"] for user in users["names"]]
+    users["count"] = [len(df[df["user"] == user]) for user in users["names"]]
+    users["genres"] = [
+        [
+            genre
+            for row in df[df["user"] == user].itertuples(index=False)
+            for genre in (await GetFullInfo(row.track))["artist"]["genres"]
+        ]
+        for user in users["names"]
+    ]
+    users["genre_ratio"] = users["genres"].apply(GetUniqueRatio)
+    users["artist_ratio"] = users["artists"].apply(GetUniqueRatio)
+    return users
+
+
 async def Graphs(message: Message) -> list[Path]:
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
-    users = set(valid["user"])
+    users = await PrepUserData(valid)
+
     valid.reset_index(drop=True)
     graphs: dict[str, Callable] = {
         "popularityTrend": lambda: px.scatter(
@@ -83,25 +105,21 @@ async def Graphs(message: Message) -> list[Path]:
             color_discrete_map=CONFIG["UserColors"],
         ),
         "users": lambda: px.pie(
-            pd.DataFrame({"user": valid["user"]}).value_counts().reset_index(name="count"),
+            users,
             names="user",
             values="count",
             color="user",
             color_discrete_map=CONFIG["UserColors"],
         ),
         "unique": lambda: px.bar(
-            pd.DataFrame(
-                {
-                    "user": list(users),
-                    "uniqueness": [
-                        valid[valid["user"] == user]["artist"].nunique()
-                        / valid[valid["user"] == user].shape[0]
-                        for user in users
-                    ],
-                },
-            ),
             x="user",
-            y="uniqueness",
+            y="artist_ratio",
+            color="user",
+            color_discrete_map=CONFIG["UserColors"],
+        ),
+        "genres": lambda: px.bar(
+            x="user",
+            y="genre_ratio",
             color="user",
             color_discrete_map=CONFIG["UserColors"],
         ),
