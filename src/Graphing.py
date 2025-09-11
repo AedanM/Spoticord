@@ -52,15 +52,16 @@ def AvgPopularityAtRow(frame: pd.DataFrame, row: int, useFollowers: bool = False
     )
 
 
-async def PrepDataFrame() -> pd.DataFrame:
+async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
     df = pd.read_csv(USER_DATA_FILE)
 
-    df["popularity"] = [await PopularityRanking(x) for x in df["track"]]
-    df["followers"] = [await PopularityRanking(x, True) for x in df["track"]]
-    df["userCount"] = [UserTrackNum(df, x) for x in df["track"]]
+    df["popularity"] = [await PopularityRanking(x) for x in df["track"] if x]
+    df["followers"] = [await PopularityRanking(x, True) for x in df["track"] if x]
+    df["userCount"] = [UserTrackNum(df, x) for x in df["track"] if x]
     df["average"] = [AvgPopularityAtRow(df, x) for x in df.index]
     df["followers_average"] = [AvgPopularityAtRow(df, x, True) for x in df.index]
-    df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+    if saveFile:
+        df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
 
     return df
 
@@ -69,7 +70,7 @@ def GetUniqueRatio(data: pd.DataFrame) -> float:
     return len(set(data)) / len(data) if len(data) > 0 else 1.0
 
 
-async def PrepUserData(df: pd.DataFrame) -> pd.DataFrame:
+async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame:
     users = pd.DataFrame({"names": list(set(df["user"]))})
     users["artists"] = [df[df["user"] == user]["artist"] for user in users["names"]]
     users["count"] = [len(df[df["user"] == user]) for user in users["names"]]
@@ -84,13 +85,20 @@ async def PrepUserData(df: pd.DataFrame) -> pd.DataFrame:
     users["genre_ratio"] = users["genres"].apply(GetUniqueRatio)
     users["artist_ratio"] = users["artists"].apply(GetUniqueRatio)
     users["average_popularity"] = [
-        sum(df[df["user"] == user]["popularity"]) for user in users["name"]
+        df[df["user"] == user]["popularity"].mean() for user in users["names"]
     ]
+
     users["overall_score"] = [
-        users[users["name"] == name]["artist_ratio"] * users[users["name"] == name]["genre_ratio"]
-        - (abs(50 - users[users["name"] == name]["average_popularity"]) * 0.01)
-        for name in users["names"]
+        row["count"]
+        * row["artist_ratio"]
+        * row["genre_ratio"]
+        * (1 / (abs(50 - row["average_popularity"]) * 0.01))
+        for _, row in users.iterrows()
     ]
+
+    if saveFile:
+        users.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+
     return users
 
 
@@ -157,9 +165,10 @@ async def Graphs(message: Message) -> list[Path]:
         ),
         "rating": lambda: px.bar(
             users,
-            x="name",
+            x="names",
             y="overall_score",
-            color="name",
+            log_y=True,
+            color="names",
             color_discrete_map=CONFIG["UserColors"],
         ),
         "totals": lambda: px.box(
