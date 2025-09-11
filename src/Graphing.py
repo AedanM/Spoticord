@@ -66,7 +66,7 @@ async def PrepDataFrame() -> pd.DataFrame:
 
 
 def GetUniqueRatio(data: pd.DataFrame) -> float:
-    return len(set(data)) / len(data) if len(data) > 0 else 0
+    return len(set(data)) / len(data) if len(data) > 0 else 1.0
 
 
 async def PrepUserData(df: pd.DataFrame) -> pd.DataFrame:
@@ -128,21 +128,23 @@ async def Graphs(message: Message) -> list[Path]:
         ),
         "users": lambda: px.pie(
             users,
-            names="user",
+            names="names",
             values="count",
-            color="user",
+            color="names",
             color_discrete_map=CONFIG["UserColors"],
         ),
-        "unique": lambda: px.bar(
-            x="user",
+        "unique_artists": lambda: px.bar(
+            users,
+            x="names",
             y="artist_ratio",
-            color="user",
+            color="names",
             color_discrete_map=CONFIG["UserColors"],
         ),
-        "genres": lambda: px.bar(
-            x="user",
+        "unique_genres": lambda: px.bar(
+            users,
+            x="names",
             y="genre_ratio",
-            color="user",
+            color="names",
             color_discrete_map=CONFIG["UserColors"],
         ),
         "totals": lambda: px.box(
