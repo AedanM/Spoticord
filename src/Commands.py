@@ -46,6 +46,8 @@ async def Graph(message: Message) -> None:
     files = [File(x) for x in created]
     if files:
         await message.reply(files=files)
+    else:
+        await message.reply("No graphs were created, did you specify a valid type?")
 
 
 async def OnTheList(message: Message) -> None:
@@ -113,11 +115,13 @@ async def ListCommands(message: Message) -> None:
         message (Message): triggering message
 
     """
-    commands = sorted(
-        [str(x) for x in list(COMMANDS.keys()) + [f"stats {y}" for y in STATS]]
-        + [f"graph {y}" for y in GRAPHS],
-    )
-    await SendMessage(f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}", message)
+    commands = list(COMMANDS.keys())
+    commands.remove("stats")
+    commands.remove("graph")
+    out = f"Current Commands:\n\t-> {'\n\t-> '.join(commands)}"
+    out += "\n\nStats Commands:\n\t-> " + "\n\t-> ".join(STATS)
+    out += "\n\nGraph Commands:\n\t-> " + "\n\t-> ".join(GRAPHS)
+    await SendMessage(out, message)
 
 
 async def UserData(message: Message) -> None:
@@ -172,7 +176,7 @@ async def CheckTracks(message: Message) -> None:
                 message,
             )
             found += 1
-    await SendMessage(f"{found} Errors Found", message)
+    await SendMessage(f"{found} Unaccounted Entries Found", message)
 
 
 async def Kill(message: Message) -> None:

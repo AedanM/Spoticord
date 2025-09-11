@@ -62,6 +62,7 @@ class UserDataEntry:
         UserDataEntry
             instance of class
         """
+        print(dataFields)
         return cls(
             Artist=dataFields[5],
             EntryStatus=Status(dataFields[2]),
