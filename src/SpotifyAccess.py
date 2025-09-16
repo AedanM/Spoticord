@@ -85,11 +85,12 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
         tuple of status and track info
     """
     result = Status.Default
+    extra = ""
     repeat, prevUser = await IsARepeat(trackId)
     if repeat:
         result = Status.Repeat
-        trackId = prevUser
-        return result, (trackId, "", "", "")
+        extra = prevUser
+
     addChance, title, artist, uri, regions = await GetDetails(trackId)
 
     if result == Status.Default and not IsInRegion(regions):
@@ -103,8 +104,7 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
             result = Status.Failed
         else:
             result = Status.Added
-
-    return (result, (trackId, title, artist, uri))
+    return (result, (trackId, title, artist, uri, extra))
 
 
 def AddTrack(
