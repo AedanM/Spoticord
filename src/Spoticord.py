@@ -95,7 +95,7 @@ async def MessageHandler(message: Message) -> None:
     if username != "Spoticord":
         await DadMode(message)
 
-    if message.content and message.content[0] == COMMAND_KEY and await HandleCommands(message):
+    if message.content and message.content[0] == COMMAND_KEY and (await HandleCommands(message)):
         return
 
     if playlistID := CONFIG["Channel Maps"].get(message.channel.name, None):
@@ -121,7 +121,7 @@ async def MessageHandler(message: Message) -> None:
                 await SendMessage(response, message, reply=True)
 
             await LogUserData(
-                (message.content, "", "", ""),
+                (message.content.replace("\n", "\\n"), "", "", ""),
                 username,
                 Status.RegexFail,
                 isTesting,

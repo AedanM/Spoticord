@@ -14,8 +14,10 @@ from Defines import (
     CONFIG,
     TEMP_USER_DATA_FILE,
     USER_DATA_FILE,
+    GetMemory,
     GetUserData,
     SaveConfig,
+    SaveMemory,
     Status,
 )
 from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
@@ -181,13 +183,23 @@ async def Blame(message: Message) -> None:
             await SendMessage(f"{entry}", message, reply=True)
 
 
-async def CheckTracks(message: Message) -> None:
+async def Validate(message: Message) -> None:
     """Check to ensure all tracks are accounted for in data log.
 
     Args:
         message (Message): triggering message
 
     """
+    missing: list[tuple[str, str]] = []
+    for idStr, m in (await GetMemory())["Cache"]["artists"].items():
+        if not m["genres"]:
+            missing.append((m["name"], idStr))
+    await SendMessage(
+        f"{len(missing)} Artists Missing Genres:\n - "
+        + "\n - ".join(f"{x[0]} ({x[1]})" for x in missing),
+        message,
+    )
+
     data = await GetUserData()
     playlistTracks = []
     found = 0
@@ -218,7 +230,7 @@ async def Kill(message: Message) -> None:
     sys.exit(0)
 
 
-async def CacheArtist(message: Message) -> None:
+async def CheckArtist(message: Message) -> None:
     """Get info on an artist from their ID.
 
     Args:
@@ -228,26 +240,48 @@ async def CacheArtist(message: Message) -> None:
     for artistID in re.findall(CONFIG["Regex"]["artist"], message.content):
         artist = (await GetArtistInfo(artistID))["artist"]
         await SendMessage(
-            f"{artist['name']} - "
-            f"Followers: {artist['followers']['total']} - "
-            f"Popularity: {artist['popularity']}",
+            f"{artist['name']}:\n"
+            f"Followers: {artist['followers']['total']}\n"
+            f"Popularity: {artist['popularity']}\n"
+            f"Genres: {artist['genres']}",
             message,
         )
 
 
+async def AddGenre(message: Message) -> None:
+    mem = message.content
+    save = " save" in message.content
+    if save:
+        mem = mem.replace(" save", "")
+    if match := re.match(r"!addGenre\s([\w]{22})\s(.*)", mem):
+        artistID, genres = match.groups()
+        info = (await GetArtistInfo(artistID))["artist"]
+        info["genres"] = sorted(
+            set(
+                info["genres"] + [x.strip() for x in genres.split(",")],
+            ),
+        )
+
+        await SendMessage(f"Genres for {info['name']} now {info['genres']}", message)
+        if save:
+            await SaveMemory()
+    else:
+        await SendMessage("Failed regex", message, reply=True)
+
+
 COMMANDS = {
     "blame": Blame,
-    "check": CheckTracks,
+    "checkArtist": CheckArtist,
+    "addGenre": AddGenre,
+    "validate": Validate,
     "commands": ListCommands,
+    "data": Data,
+    "graph": Graph,
     "kill": Kill,
     "onTheList": OnTheList,
     "refresh": Refresh,
     "stats": UserStats,
     "update": Update,
-    "data": Data,
-    "cacheArtist": CacheArtist,
-    "graph": Graph,
-    "force": lambda _x: ...,
 }
 
 
@@ -267,7 +301,8 @@ async def HandleCommands(message: Message) -> bool:
         if re.match(COMMAND_KEY + key, message.content):
             await command(message)
             handled = True
-    if not handled:
+            break
+    if not handled and "!force" not in message.content:
         await SendMessage(
             output="I think that was supposed to be a command, but none I recognized",
             contextObj=message,

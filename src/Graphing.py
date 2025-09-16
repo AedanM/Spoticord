@@ -20,6 +20,7 @@ GRAPHS: list[str] = [
     "totals",
     "heat",
     "unique",
+    "genres",
 ]
 
 
@@ -105,6 +106,7 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
         users.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
 
     return users
+
 
 
 async def Graphs(message: Message) -> list[Path]:
