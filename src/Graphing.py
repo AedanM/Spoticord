@@ -1,6 +1,8 @@
 import re
+from collections import namedtuple
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import plotly.express as px
@@ -20,6 +22,52 @@ GRAPHS: list[str] = [
     "heat",
     "unique",
 ]
+MASTER_GENRES = [
+    "dance",
+    "donk",
+    "electronic",
+    "hip-hop",
+    "indie",
+    "metal",
+    "pop",
+    "reggae",
+    "rock",
+    "ska",
+    "big band",
+    "comedy",
+    "country",
+    "folk",
+    "jazz",
+    "punk",
+    "r&b",
+    "swing",
+    "classical",
+    "soul",
+    "blues",
+]
+
+
+async def GraphGenres(valid: pd.DataFrame) -> Any:
+    genreFreq = dict(
+        zip([*MASTER_GENRES, "Other"], [0] * len([*MASTER_GENRES, "Other"]), strict=True),
+    )
+    for row in valid.itertuples():
+        trackInfo = await GetFullInfo(str(row.track))
+        matched = False
+        for genre in MASTER_GENRES:
+            if genre in "".join(trackInfo["artist"]["genres"]):
+                genreFreq[genre] += 1
+                matched = True
+        if not matched:
+            genreFreq["Other"] += 1
+
+    fig = px.pie(
+        names=list(genreFreq.keys()),
+        values=list(genreFreq.values()),
+        title="Genre Distribution",
+    )
+    fig.update_traces(textinfo="percent+label")
+    return fig
 
 
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
@@ -187,6 +235,7 @@ async def Graphs(message: Message) -> list[Path]:
             nbinsx=50,
             nbinsy=10,
         ),
+        "genres": lambda: GraphGenres(valid),
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
