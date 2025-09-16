@@ -1,7 +1,5 @@
-import re
-from collections import namedtuple
+import inspect
 from collections.abc import Callable
-from math import sqrt
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +154,6 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
     return users
 
 
-
 async def Graphs(message: Message) -> list[Path]:
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
@@ -248,7 +245,10 @@ async def Graphs(message: Message) -> list[Path]:
     figs: list = []
     for graph, func in graphs.items():
         if graph in message.content or " all" in message.content:
-            figs.append(func())
+            if inspect.iscoroutinefunction(func):
+                figs.append(await func())
+            else:
+                figs.append(func())
             figs[-1].update_layout(xaxis={"categoryorder": "total ascending"})
             print(f"generated {graph}")
             made.append(USER_DATA_FILE.parent / "graphs" / f"{graph}.png")
