@@ -125,22 +125,44 @@ async def ListCommands(message: Message) -> None:
     await SendMessage(out, message)
 
 
-async def UserData(message: Message) -> None:
+async def Data(message: Message) -> None:
     """Send the user data file.
 
         Args:
             message (Message): triggering message
     _
     """
-    await SendMessage("Generating the user data file", message, True)
-    if "popularity" not in message.content and "users" not in message.content:
+    if "personal" in message.content:
+        df = await PrepDataFrame()
+        valid = df.loc[df["result"] == Status.Added]
+        report: str = "Play%\tGenre\tArtist\tPop\tScore\tUser\n"
+        userData = await PrepUserData(valid)
+        for uname in userData["names"]:
+            ud = userData[userData["names"] == uname].iloc[0]
+            report += (
+                f"{ud['playlist_%']:02.2f}\t"
+                f"{ud['genre_ratio']:02.2f}\t"
+                f"{ud['artist_ratio']:02.2f}\t"
+                f"{ud['median_popularity']:02.2f}\t"
+                f"{f'{ud["overall_score"]:02.2f}'}\t"
+                f"{uname:20}\n"
+            )
+        await SendMessage(
+            report,
+            message,
+            reply=True,
+        )
+    elif "popularity" not in message.content and "users" not in message.content:
+        await SendMessage("Generating the user data file", message, True)
         await message.reply(file=File(USER_DATA_FILE))
     elif "users" in message.content:
+        await SendMessage("Generating the user data file", message, True)
         df = await PrepDataFrame()
         valid = df.loc[df["result"] == Status.Added]
         await PrepUserData(valid, True)
         await message.reply(file=File(TEMP_USER_DATA_FILE))
     else:
+        await SendMessage("Generating the user data file", message, True)
         await PrepDataFrame(True)
         await message.reply(file=File(TEMP_USER_DATA_FILE))
 
@@ -222,7 +244,7 @@ COMMANDS = {
     "refresh": Refresh,
     "stats": UserStats,
     "update": Update,
-    "userData": UserData,
+    "data": Data,
     "cacheArtist": CacheArtist,
     "graph": Graph,
     "force": lambda _x: ...,

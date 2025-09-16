@@ -1,5 +1,6 @@
 import re
 from collections.abc import Callable
+from math import sqrt
 from pathlib import Path
 
 import pandas as pd
@@ -67,7 +68,7 @@ async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
 
 
 def GetUniqueRatio(data: pd.DataFrame) -> float:
-    return len(set(data)) / len(data) if len(data) > 0 else 1.0
+    return len(set(data)) / len(data) if len(data) > 1 else 0.0
 
 
 async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame:
@@ -82,17 +83,21 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
         ]
         for user in users["names"]
     ]
+    users["playlist_%"] = users["count"].apply(lambda x: x / len(df))
     users["genre_ratio"] = users["genres"].apply(GetUniqueRatio)
     users["artist_ratio"] = users["artists"].apply(GetUniqueRatio)
+    users["median_popularity"] = [
+        df[df["user"] == user]["popularity"].median() for user in users["names"]
+    ]
     users["average_popularity"] = [
         df[df["user"] == user]["popularity"].mean() for user in users["names"]
     ]
 
     users["overall_score"] = [
-        row["count"]
-        * row["artist_ratio"]
-        * row["genre_ratio"]
-        * (1 / (abs(50 - row["average_popularity"]) * 0.01))
+        row["playlist_%"]
+        + row["artist_ratio"]
+        + row["genre_ratio"]
+        - (abs(50 - row["median_popularity"]) / 50)
         for _, row in users.iterrows()
     ]
 
@@ -167,7 +172,6 @@ async def Graphs(message: Message) -> list[Path]:
             users,
             x="names",
             y="overall_score",
-            log_y=True,
             color="names",
             color_discrete_map=CONFIG["UserColors"],
         ),

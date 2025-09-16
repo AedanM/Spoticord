@@ -6,7 +6,8 @@ from statistics import median, quantiles
 
 from discord import Message
 
-from Defines import CONFIG, GetMemory, GetUserData, UserDataEntry
+from Defines import CONFIG, GetMemory, GetUserData, Status, UserDataEntry
+from Graphing import PrepDataFrame, PrepUserData
 from SpotifyAccess import GetFullInfo
 from Utility import SendMessage
 
@@ -210,21 +211,24 @@ async def GetMainstreamRating(
         result str
     """
     results = {}
+    df = await PrepDataFrame()
+    df = df.loc[df["result"] == Status.Added]
+    users = await PrepUserData(df)
     for uname in {x.User for x in data}:
-        popularity = []
-        for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == uname]:
-            t = await GetFullInfo(entry.TrackId)
-            popularity.append(
-                t["artist"]["popularity"]
-                if not useFollowers
-                else t["artist"]["followers"]["total"],
-            )
         if useQuantiles:
-            results[uname] = "[" + ", ".join([str(x) for x in quantiles(popularity)]) + "]"
-        elif popularity and useMedian:
-            results[uname] = median(popularity)
+            popularity = []
+            for entry in [x for x in data if x.EntryStatus.WasSuccessful and x.User == uname]:
+                t = await GetFullInfo(entry.TrackId)
+                popularity.append(
+                    t["artist"]["popularity"]
+                    if not useFollowers
+                    else t["artist"]["followers"]["total"],
+                )
+                results[uname] = "[" + ", ".join([str(x) for x in quantiles(popularity)]) + "]"
+        elif useMedian:
+            results[uname] = users[users["names"] == uname]["median_popularity"].iloc[0]
         else:
-            results[uname] = round(sum(popularity) / len(popularity), 2)
+            results[uname] = round(users[users["names"] == uname]["average_popularity"].iloc[0], 2)
 
     return "Mainstream Ratings:", sorted(results.items(), key=lambda x: x[1])
 
