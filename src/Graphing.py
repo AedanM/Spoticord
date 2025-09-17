@@ -44,6 +44,10 @@ MASTER_GENRES = [
     "classical",
     "soul",
     "blues",
+    "soundtrack",
+    "disco",
+    "funk",
+    "avant-garde",
 ]
 
 
@@ -66,7 +70,6 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
         values=list(genreFreq.values()),
         title="Genre Distribution",
     )
-    fig.update_traces(textinfo="percent+label")
     return fig
 
 
@@ -238,7 +241,7 @@ async def Graphs(message: Message) -> list[Path]:
             nbinsx=50,
             nbinsy=10,
         ),
-        "genres": lambda: GraphGenres(valid),
+        "genres": GraphGenres,
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
@@ -246,7 +249,7 @@ async def Graphs(message: Message) -> list[Path]:
     for graph, func in graphs.items():
         if graph in message.content or " all" in message.content:
             if inspect.iscoroutinefunction(func):
-                figs.append(await func())
+                figs.append(await func(valid))
             else:
                 figs.append(func())
             figs[-1].update_layout(xaxis={"categoryorder": "total ascending"})
