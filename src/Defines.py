@@ -25,6 +25,7 @@ class Status(StrEnum):
     Added = "Added"
     Failed = "Failed"
     Repeat = "Repeat"
+    Removed = "Removed"
     BadVibes = "Failed Vibes"
     RegexFail = "Failed Regex"
     WrongMarket = "Wrong Market"
@@ -239,3 +240,32 @@ def AppendUserData(data: str) -> None:
     userEntry = UserDataEntry.FromString(data)
     with USER_DATA_FILE.open(mode="a", encoding="utf-8") as fp:
         fp.write("\n" + userEntry.OutputString)
+
+
+MASTER_GENRES = [
+    "dance",
+    "donk",
+    "electronic",
+    "hip-hop",
+    "indie",
+    "metal",
+    "pop",
+    "reggae",
+    "rock",
+    "ska",
+    "big band",
+    "comedy",
+    "country",
+    "folk",
+    "jazz",
+    "punk",
+    "r&b",
+    "swing",
+    "classical",
+    "soul",
+    "blues",
+    "soundtrack",
+    "disco",
+    "funk",
+    "avant-garde",
+]

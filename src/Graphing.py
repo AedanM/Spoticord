@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.io as pio
 from discord import Message
 
-from Defines import CONFIG, TEMP_USER_DATA_FILE, USER_DATA_FILE, Status
+from Defines import CONFIG, MASTER_GENRES, TEMP_USER_DATA_FILE, USER_DATA_FILE, Status
 from SpotifyAccess import GetFullInfo
 
 GRAPHS: list[str] = [
@@ -23,33 +23,6 @@ GRAPHS: list[str] = [
     "heat",
     "unique",
     "genres",
-]
-MASTER_GENRES = [
-    "dance",
-    "donk",
-    "electronic",
-    "hip-hop",
-    "indie",
-    "metal",
-    "pop",
-    "reggae",
-    "rock",
-    "ska",
-    "big band",
-    "comedy",
-    "country",
-    "folk",
-    "jazz",
-    "punk",
-    "r&b",
-    "swing",
-    "classical",
-    "soul",
-    "blues",
-    "soundtrack",
-    "disco",
-    "funk",
-    "avant-garde",
 ]
 
 

@@ -12,6 +12,7 @@ from discord import File, Message
 from Defines import (
     COMMAND_KEY,
     CONFIG,
+    MASTER_GENRES,
     TEMP_USER_DATA_FILE,
     USER_DATA_FILE,
     GetMemory,
@@ -190,13 +191,13 @@ async def Validate(message: Message) -> None:
         message (Message): triggering message
 
     """
-    missing: list[tuple[str, str]] = []
+    missing: list[tuple[str, str, str]] = []
     for idStr, m in (await GetMemory())["Cache"]["artists"].items():
-        if not m["genres"]:
-            missing.append((m["name"], idStr))
+        if not any(x in "".join(m["genres"]) for x in MASTER_GENRES):
+            missing.append((m["name"], idStr, m["genres"]))
     await SendMessage(
         f"{len(missing)} Artists Missing Genres:\n - "
-        + "\n - ".join(f"{x[0]} ({x[1]})" for x in missing),
+        + "\n - ".join(f"{x[0]} ({x[1]}) {x[2]}" for x in missing),
         message,
     )
 
@@ -258,7 +259,8 @@ async def AddGenre(message: Message) -> None:
         info = (await GetArtistInfo(artistID))["artist"]
         info["genres"] = sorted(
             set(
-                info["genres"] + [x.strip() for x in genres.split(",")],
+                (info["genres"] if isinstance(info["genres"], list) else [])
+                + [x.strip() for x in genres.split(",")],
             ),
         )
 

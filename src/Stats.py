@@ -31,7 +31,7 @@ async def GetReleaseDate(data: list[UserDataEntry]) -> tuple[str, list[tuple]]:
     output: list[tuple] = []
     for row in [x for x in data if x.EntryStatus.WasSuccessful]:
         info = await GetFullInfo(row.TrackId)
-        output.append((f"{row.TrackInfo} - {row.User}", info["track"]["album"]["release_date"]))
+        output.append((f"{row.User} - {row.TrackInfo}", info["track"]["album"]["release_date"]))
 
     return "Release Date:", sorted(output, key=lambda x: x[1])
 
