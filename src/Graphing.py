@@ -1,5 +1,7 @@
 import inspect
+import re
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +73,35 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
         title="Genre Distribution",
     )
     return fig
+
+
+async def GraphTimeline(valid: pd.DataFrame):
+    release_date = []
+
+    for row in valid.itertuples():
+        info = await GetFullInfo(str(row.track))
+        if match := re.match(r"(\d+)-?(\d*)-?(\d*)", info["album"]["release_date"]):
+            year, month, day = [int(x) if x.isnumeric() else 0 for x in match.groups()]
+            release = (
+                date(
+                    year=year,
+                    month=month,
+                    day=day,
+                ),
+            )
+        else:
+            release = date.today()
+        release_date.append(release)
+    valid["release_date"] = release_date
+
+    return px.scatter(
+        valid,
+        y="popularity",
+        x="release_date",
+        color="user",
+        trendline="lowess",
+        color_discrete_map=CONFIG["UserColors"],
+    )
 
 
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
@@ -242,6 +273,7 @@ async def Graphs(message: Message) -> list[Path]:
             nbinsy=10,
         ),
         "genres": GraphGenres,
+        "timeline": GraphTimeline,
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
