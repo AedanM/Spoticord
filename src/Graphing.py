@@ -77,29 +77,22 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
 
 async def GraphTimeline(valid: pd.DataFrame):
     release_date = []
-
+    release: date
     for row in valid.itertuples():
         info = await GetFullInfo(str(row.track))
-        if match := re.match(r"(\d+)-?(\d*)-?(\d*)", info["album"]["release_date"]):
-            year, month, day = [int(x) if x.isnumeric() else 0 for x in match.groups()]
-            release = (
-                date(
-                    year=year,
-                    month=month,
-                    day=day,
-                ),
-            )
+        if match := re.match(r"(\d+)-?(\d*)-?(\d*)", info["track"]["album"]["release_date"]):
+            year, month, day = [int(x) if x.isnumeric() else 1 for x in match.groups()]
+            release = date(year=year, month=month, day=day)
         else:
             release = date.today()
-        release_date.append(release)
-    valid["release_date"] = release_date
-
-    return px.scatter(
+        release_date.append(release.isoformat())
+    return px.box(
         valid,
-        y="popularity",
-        x="release_date",
+        y="user",
+        x=release_date,
+        orientation="h",
         color="user",
-        trendline="lowess",
+        points="all",
         color_discrete_map=CONFIG["UserColors"],
     )
 
