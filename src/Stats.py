@@ -14,7 +14,7 @@ from Utility import SendMessage
 STAT_COUNT: int = 10
 
 
-async def FilterData(message: Message, data: list[list]) -> list:
+async def FilterData(message: Message, data: list[tuple]) -> list:
     """Perform common filtering of data."""
     out = data
     statCount = STAT_COUNT
@@ -25,6 +25,15 @@ async def FilterData(message: Message, data: list[list]) -> list:
     if statCount < len(out):
         out = out[:statCount]
     return out
+
+
+async def GetReleaseDate(data: list[UserDataEntry]) -> tuple[str, list[tuple]]:
+    output: list[tuple] = []
+    for row in [x for x in data if x.EntryStatus.WasSuccessful]:
+        info = await GetFullInfo(row.TrackId)
+        output.append((f"{row.TrackInfo} - {row.User}", info["track"]["album"]["release_date"]))
+
+    return "Release Date:", sorted(output, key=lambda x: x[1])
 
 
 async def UserStats(message: Message) -> None:
@@ -47,6 +56,8 @@ async def UserStats(message: Message) -> None:
         outStr, stats = await GetGenreCount(data)
     if "unlabeled" in message.content:
         outStr, stats = await GetUnlabeled()
+    if "release" in message.content:
+        outStr, stats = await GetReleaseDate(data)
     if "popularity" in message.content:
         outStr, stats = await GetPopularityRanking(
             data,
