@@ -7,7 +7,9 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+import pandas as pd
 from discord import File, Message
+from more_itertools import chunked
 
 from Defines import (
     COMMAND_KEY,
@@ -49,7 +51,8 @@ async def Graph(message: Message) -> None:
     created = await Graphs(message)
     files = [File(x) for x in created]
     if files:
-        await message.reply(files=files)
+        for c in chunked(files, 10):
+            await message.reply(files=c)
     else:
         await message.reply("No graphs were created, did you specify a valid type?")
 
@@ -138,6 +141,9 @@ async def Data(message: Message) -> None:
     if "personal" in message.content:
         df = await PrepDataFrame()
         valid = df.loc[df["result"] == Status.Added]
+        if isinstance(valid, pd.Series):
+            await SendMessage("Not enough data to generate report", message, reply=True)
+            return
         report: str = "Play%\tGenre\tArtist\tPop\tScore\tUser\n"
         userData = await PrepUserData(valid)
         for uname in userData["names"]:
@@ -162,6 +168,9 @@ async def Data(message: Message) -> None:
         await SendMessage("Generating the user data file", message, True)
         df = await PrepDataFrame()
         valid = df.loc[df["result"] == Status.Added]
+        if isinstance(valid, pd.Series):
+            await SendMessage("Not enough data to generate report", message, reply=True)
+            return
         await PrepUserData(valid, True)
         await message.reply(file=File(TEMP_USER_DATA_FILE))
     else:
@@ -250,6 +259,7 @@ async def CheckArtist(message: Message) -> None:
 
 
 async def AddGenre(message: Message) -> None:
+    """Add genre(s) to an artist from their ID."""
     mem = message.content
     save = " save" in message.content
     if save:

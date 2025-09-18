@@ -45,6 +45,14 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
         values=list(genreFreq.values()),
         title="Genre Distribution",
     )
+    print(genreFreq)
+    fig.update_layout(
+        legend=dict(
+            yanchor="top",
+            y=0,
+            font=dict(size=8),
+        ),
+    )
     return fig
 
 
@@ -157,6 +165,8 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
 async def Graphs(message: Message) -> list[Path]:
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
+    if isinstance(valid, pd.Series):
+        return []
     users = await PrepUserData(valid)
 
     valid.reset_index(drop=True)
