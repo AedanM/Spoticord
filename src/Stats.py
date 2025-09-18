@@ -28,6 +28,18 @@ async def FilterData(message: Message, data: list[tuple]) -> list:
 
 
 async def GetReleaseDate(data: list[UserDataEntry]) -> tuple[str, list[tuple]]:
+    """Get data for when songs were released.
+
+    Parameters
+    ----------
+    data : list[UserDataEntry]
+        input data
+
+    Returns
+    -------
+    tuple[str, list[tuple]]
+        result str and data
+    """
     output: list[tuple] = []
     for row in [x for x in data if x.EntryStatus.WasSuccessful]:
         info = await GetFullInfo(row.TrackId)
@@ -46,41 +58,38 @@ async def UserStats(message: Message) -> None:
     stats: list = []
     username: str = str(message.author).split("#", maxsplit=1)[0]
     outStr: str = ""
-    if "onTheList" in message.content:
-        outStr, stats = await GetOnTheList()
-    if "duration" in message.content:
-        outStr, stats = await GetDuration(data)
-    if "poster" in message.content:
-        outStr, stats = await GetPosterCount(data)
-    if "genre" in message.content:
-        outStr, stats = await GetGenreCount(data)
-    if "unlabeled" in message.content:
-        outStr, stats = await GetUnlabeled()
-    if "release" in message.content:
-        outStr, stats = await GetReleaseDate(data)
-    if "popularity" in message.content:
-        outStr, stats = await GetPopularityRanking(
+
+    handlers: dict = {
+        "onTheList": lambda: GetOnTheList(),
+        "duration": lambda: GetDuration(data),
+        "poster": lambda: GetPosterCount(data),
+        "genre": lambda: GetGenreCount(data),
+        "unlabeled": lambda: GetUnlabeled(),
+        "release": lambda: GetReleaseDate(data),
+        "popularity": lambda: GetPopularityRanking(
             data,
             "follower" in message.content,
             "track" in message.content,
-        )
-
-    if "mainstream" in message.content and "personal" in message.content:
-        outStr, stats = await GetPersonalMainstream(
+        ),
+        "mainstream personal": lambda: GetPersonalMainstream(
             data,
             username,
             "follower" in message.content,
             "track" in message.content,
-        )
-    elif "mainstream" in message.content:
-        outStr, stats = await GetMainstreamRating(
+        ),
+        "mainstream": lambda: GetMainstreamRating(
             data,
             "follower" in message.content,
             "median" in message.content,
             "quantiles" in message.content,
-        )
-    elif "artist" in message.content:
-        outStr, stats = await GetArtistCount(data)
+        ),
+        "artist": lambda: GetArtistCount(data),
+    }
+
+    for keyword, handler in handlers.items():
+        if keyword in message.content:
+            outStr, stats = await handler()
+            break
 
     stats = await FilterData(message, stats)
     outStr = f"{outStr}\n{'\n'.join([f'{x[0]} -> {x[1]}' for x in stats])}"
@@ -164,12 +173,13 @@ async def GetGenreCount(
     str
         result str
     """
-    genres: list[str] = []
-    for track in [x for x in data if x.EntryStatus.WasSuccessful]:
-        genres += (await GetFullInfo(track.TrackId))["artist"]["genres"]
+    genres: list[str] = [
+        genre
+        for track in [x for x in data if x.EntryStatus.WasSuccessful]
+        for genre in (await GetFullInfo(track.TrackId))["artist"]["genres"]
+    ]
     genreFreq = {x: genres.count(x) for x in set(genres)}
-    genreFreq = [x for x in sorted(genreFreq.items(), key=lambda x: x[1]) if x[1] > 1]
-    return "Genre Frequency:", genreFreq
+    return "Genre Frequency:", sorted(genreFreq.items(), key=lambda x: x[1])
 
 
 async def GetArtistCount(
