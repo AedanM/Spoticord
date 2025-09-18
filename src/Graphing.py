@@ -30,18 +30,13 @@ GRAPHS: list[str] = [
 
 async def GraphGenres(valid: pd.DataFrame) -> Any:
     """Generate a pie chart of genre distribution."""
-    genreFreq = dict(
-        zip(
-            [*MASTER_GENRES, "Other"],
-            [0] * len([*MASTER_GENRES, "Other"]),
-            strict=True,
-        ),
-    )
-    for row in valid.itertuples():
-        trackInfo = await GetFullInfo(str(row.track))
+    genreFreq = dict.fromkeys([*MASTER_GENRES, "Other"], 0)
+    for track in valid["track"]:
+        trackInfo = await GetFullInfo(str(track))
+        genres = "".join(trackInfo["artist"].get("genres", []))
         matched = False
         for genre in MASTER_GENRES:
-            if genre in "".join(trackInfo["artist"]["genres"]):
+            if genre in "".join(genres):
                 genreFreq[genre] += 1
                 matched = True
         if not matched:
@@ -63,20 +58,23 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
 
 async def GraphTimeline(valid: pd.DataFrame) -> Any:
     """Generate a timeline graph of when tracks were released."""
-    release_date = []
-    release: date
-    for row in valid.itertuples():
-        info = await GetFullInfo(str(row.track))
-        if match := re.match(r"(\d+)-?(\d*)-?(\d*)", info["track"]["album"]["release_date"]):
-            year, month, day = [int(x) if x.isnumeric() else 1 for x in match.groups()]
+    release_dates = []
+    for track in valid["track"]:
+        info = await GetFullInfo(str(track))
+        date_str = info["track"]["album"].get("release_date", "")
+        match = re.match(r"(\d+)-?(\d*)-?(\d*)", date_str)
+        if match:
+            year, month, day = [int(x) if x.isnumeric() and x else 1 for x in match.groups()]
             release = date(year=year, month=month, day=day)
         else:
             release = date.today()
-        release_date.append(release.isoformat())
+        release_dates.append(release.isoformat())
+    valid = valid.copy()
+    valid["release_date"] = release_dates
     return px.box(
         valid,
         y="user",
-        x=release_date,
+        x="release_date",
         orientation="h",
         color="user",
         points="all",
@@ -87,22 +85,24 @@ async def GraphTimeline(valid: pd.DataFrame) -> Any:
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
     """Get the number of tracks a user has added before this one."""
     trackRow = frame.loc[frame["track"] == track]
+    if trackRow.empty:
+        return 0
     trackIDx = trackRow.index[0]
-    prevEntries = frame.loc[
-        (frame["user"] == trackRow["user"][trackIDx]) & (frame.index < trackIDx)
-    ]
-    return len(prevEntries.index)
+    user = trackRow["user"].iloc[0]
+    prevEntries = frame.loc[(frame["user"] == user) & (frame.index < trackIDx)]
+    return len(prevEntries)
 
 
 async def PopularityRanking(track: str, useFollowers: bool = False) -> float:
     """Calculate a popularity ranking for a track."""
     try:
         trackInfo = await GetFullInfo(track)
-        val = (
-            (0.75 * trackInfo["track"]["popularity"]) + (0.25 * trackInfo["artist"]["popularity"])
-            if not useFollowers
-            else trackInfo["artist"]["followers"]["total"]
-        )
+        if not useFollowers:
+            val = 0.75 * trackInfo["track"].get("popularity", 0) + 0.25 * trackInfo["artist"].get(
+                "popularity", 0
+            )
+        else:
+            val = trackInfo["artist"].get("followers", {}).get("total", 0)
     except (KeyError, TypeError):
         val = -1.0
     return val
@@ -110,34 +110,32 @@ async def PopularityRanking(track: str, useFollowers: bool = False) -> float:
 
 def AvgPopularityAtRow(frame: pd.DataFrame, row: int, useFollowers: bool = False) -> float:
     """Average popularity of all tracks up to and including this one."""
-    trackRow = frame.iloc[row]
-    trackIdx = trackRow.name
-    prevEntries = frame.loc[frame.index <= trackIdx]
-    return round(
-        sum(prevEntries["popularity" if not useFollowers else "followers"])
-        / len(prevEntries.index),
-        2,
-    )
+    trackIdx = frame.index[row]
+    prevEntries = frame.loc[:trackIdx]
+    col = "popularity" if not useFollowers else "followers"
+    if len(prevEntries) == 0:
+        return 0.0
+    return round(prevEntries[col].sum() / len(prevEntries), 2)
 
 
 async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
     """Prepare the main dataframe with all calculated fields."""
     df = pd.read_csv(USER_DATA_FILE)
 
-    df["popularity"] = [await PopularityRanking(x) for x in df["track"] if x]
-    df["followers"] = [await PopularityRanking(x, True) for x in df["track"] if x]
-    df["userCount"] = [UserTrackNum(df, x) for x in df["track"] if x]
-    df["average"] = [AvgPopularityAtRow(df, x) for x in df.index]
-    df["followers_average"] = [AvgPopularityAtRow(df, x, True) for x in df.index]
+    df["popularity"] = [await PopularityRanking(x) for x in df["track"]]
+    df["followers"] = [await PopularityRanking(x, True) for x in df["track"]]
+    df["userCount"] = [UserTrackNum(df, x) for x in df["track"]]
+    df["average"] = [AvgPopularityAtRow(df, i) for i in range(len(df))]
+    df["followers_average"] = [AvgPopularityAtRow(df, i, True) for i in range(len(df))]
 
     if saveFile:
         # Reset index and ensure columns are in the correct order before saving
         df_reset = df.reset_index(drop=True)
         # Convert any list-like columns to semicolon-separated strings for CSV output
         for col in df_reset.columns:
-            if df_reset[col].apply(lambda x: isinstance(x, (list, pd.Series))).any():
+            if df_reset[col].apply(lambda x: isinstance(x, list | pd.Series)).any():
                 df_reset[col] = df_reset[col].apply(
-                    lambda x: ";".join(map(str, x)) if isinstance(x, (list, pd.Series)) else x
+                    lambda x: ";".join(map(str, x)) if isinstance(x, list | pd.Series) else x,
                 )
         df_reset.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False)
 
@@ -151,34 +149,40 @@ def GetUniqueRatio(data: pd.DataFrame) -> float:
 
 async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame:
     """Prepare the user-specific dataframe with all calculated fields."""
-    users = pd.DataFrame({"names": list(set(df["user"]))})
-    users["artists"] = [df[df["user"] == user]["artist"] for user in users["names"]]
-    users["count"] = [len(df[df["user"] == user]) for user in users["names"]]
-    users["genres"] = [
-        [
-            genre
-            for row in df[df["user"] == user].itertuples(index=False)
-            for genre in (await GetFullInfo(row.track))["artist"]["genres"]
-        ]
-        for user in users["names"]
-    ]
-    users["playlist_%"] = users["count"].apply(lambda x: x / len(df))
+    user_names = df["user"].unique()
+    users = pd.DataFrame({"names": user_names})
+    user_group = df.groupby("user")
+    users["artists"] = users["names"].map(
+        lambda user: user_group.get_group(user)["artist"].tolist(),
+    )
+    users["count"] = users["names"].map(
+        lambda user: len(user_group.get_group(user)),
+    )
+
+    genres_list = []
+    for user in users["names"]:
+        genres = []
+        for track in user_group.get_group(user)["track"]:
+            info = await GetFullInfo(track)
+            genres.extend(info["artist"].get("genres", []))
+        genres_list.append(genres)
+    users["genres"] = genres_list
+    users["playlist_%"] = users["count"] / len(df)
     users["genre_ratio"] = users["genres"].apply(GetUniqueRatio)
     users["artist_ratio"] = users["artists"].apply(GetUniqueRatio)
-    users["median_popularity"] = [
-        df[df["user"] == user]["popularity"].median() for user in users["names"]
-    ]
-    users["average_popularity"] = [
-        df[df["user"] == user]["popularity"].mean() for user in users["names"]
-    ]
+    users["median_popularity"] = users["names"].map(
+        lambda user: user_group.get_group(user)["popularity"].median(),
+    )
+    users["average_popularity"] = users["names"].map(
+        lambda user: user_group.get_group(user)["popularity"].mean(),
+    )
 
-    users["overall_score"] = [
-        row["playlist_%"]
-        + row["artist_ratio"]
-        + row["genre_ratio"]
-        - (abs(50 - row["median_popularity"]) / 50)
-        for _, row in users.iterrows()
-    ]
+    users["overall_score"] = (
+        users["playlist_%"]
+        + users["artist_ratio"]
+        + users["genre_ratio"]
+        - (abs(50 - users["median_popularity"]) / 50)
+    )
 
     if saveFile:
         # Convert 'artists' and 'genres' columns to semicolon-separated strings for CSV output
