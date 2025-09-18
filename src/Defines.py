@@ -112,6 +112,7 @@ class UserDataEntry:
                 f'"{self.TrackName}"',
                 f'"{self.Artist}"',
                 f'"{self.URI}"',
+                f'"{self.Bonus}"',
             ],
         )
 

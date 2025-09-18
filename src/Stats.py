@@ -2,8 +2,9 @@
 
 import math
 import re
-from statistics import median, quantiles
+from statistics import quantiles
 
+import pandas as pd
 from discord import Message
 
 from Defines import CONFIG, GetMemory, GetUserData, Status, UserDataEntry
@@ -234,6 +235,8 @@ async def GetMainstreamRating(
     results = {}
     df = await PrepDataFrame()
     df = df.loc[df["result"] == Status.Added]
+    if isinstance(df, pd.Series):
+        return "Mainstream Ratings:", []
     users = await PrepUserData(df)
     for uname in {x.User for x in data}:
         if useQuantiles:

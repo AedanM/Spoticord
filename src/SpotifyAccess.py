@@ -1,6 +1,7 @@
 """Handle all spotify api calls."""
 
 import random
+import re
 
 import spotipy
 
@@ -151,12 +152,15 @@ async def GetFullInfo(trackId: str) -> dict[str, dict]:
     artistInfo: dict = {}
     if trackId in memory["Cache"]["tracks"]:
         trackInfo = memory["Cache"]["tracks"][trackId]
-    else:
-        trackInfo = SPOTIFY_CLIENT.track(trackId)
-        trackInfo.pop("available_markets")
-        trackInfo["album"].pop("available_markets")
-        memory["Cache"]["tracks"][trackId] = trackInfo
-        updatedMemory = True
+    elif re.match(r"[0-9a-zA-Z]+", trackId.strip()):
+        try:
+            trackInfo = SPOTIFY_CLIENT.track(trackId)
+            trackInfo.pop("available_markets")
+            trackInfo["album"].pop("available_markets")
+            memory["Cache"]["tracks"][trackId] = trackInfo
+            updatedMemory = True
+        except spotipy.exceptions.SpotifyException:
+            return {"track": {}, "artist": {}}
 
     artistId = str(trackInfo["artists"][0]["id"])
     if artistId in memory["Cache"]["artists"]:

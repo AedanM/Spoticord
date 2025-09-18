@@ -31,7 +31,11 @@ GRAPHS: list[str] = [
 async def GraphGenres(valid: pd.DataFrame) -> Any:
     """Generate a pie chart of genre distribution."""
     genreFreq = dict(
-        zip([*MASTER_GENRES, "Other"], [0] * len([*MASTER_GENRES, "Other"]), strict=True),
+        zip(
+            [*MASTER_GENRES, "Other"],
+            [0] * len([*MASTER_GENRES, "Other"]),
+            strict=True,
+        ),
     )
     for row in valid.itertuples():
         trackInfo = await GetFullInfo(str(row.track))
@@ -47,11 +51,12 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
         names=list(genreFreq.keys()),
         values=list(genreFreq.values()),
         title="Genre Distribution",
+        color_discrete_sequence=px.colors.qualitative.Light24,
     )
-    fig.update_layout(
-        legend={
-            "font": {"size": 8},
-        },
+    fig.update_layout(showlegend=False)
+    fig.update_traces(
+        textinfo="label+percent",
+        textposition="inside",
     )
     return fig
 
@@ -124,8 +129,17 @@ async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
     df["userCount"] = [UserTrackNum(df, x) for x in df["track"] if x]
     df["average"] = [AvgPopularityAtRow(df, x) for x in df.index]
     df["followers_average"] = [AvgPopularityAtRow(df, x, True) for x in df.index]
+
     if saveFile:
-        df.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+        # Reset index and ensure columns are in the correct order before saving
+        df_reset = df.reset_index(drop=True)
+        # Convert any list-like columns to semicolon-separated strings for CSV output
+        for col in df_reset.columns:
+            if df_reset[col].apply(lambda x: isinstance(x, (list, pd.Series))).any():
+                df_reset[col] = df_reset[col].apply(
+                    lambda x: ";".join(map(str, x)) if isinstance(x, (list, pd.Series)) else x
+                )
+        df_reset.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False)
 
     return df
 
@@ -167,7 +181,11 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
     ]
 
     if saveFile:
-        users.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False, header=True)
+        # Convert 'artists' and 'genres' columns to semicolon-separated strings for CSV output
+        users_out = users.copy()
+        users_out["artists"] = users_out["artists"].apply(lambda x: ";".join(map(str, x)))
+        users_out["genres"] = users_out["genres"].apply(lambda x: ";".join(map(str, x)))
+        users_out.to_csv(TEMP_USER_DATA_FILE, sep=",", encoding="utf-8", index=False)
 
     return users
 
@@ -176,6 +194,8 @@ async def Graphs(message: Message) -> list[Path]:
     """Generate graphs based on user data and message content."""
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
+    valid = valid.reset_index(drop=True)
+
     if isinstance(valid, pd.Series):
         return []
     users = await PrepUserData(valid)
@@ -275,4 +295,5 @@ async def Graphs(message: Message) -> list[Path]:
             print(f"generated {graph}")
             made.append(USER_DATA_FILE.parent / "graphs" / f"{graph}.png")
     pio.write_images(fig=figs, file=made, width=960, height=540, scale=2)
+    return made
     return made

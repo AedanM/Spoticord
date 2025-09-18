@@ -12,6 +12,7 @@ import pandas as pd
 from discord import File, Message
 from more_itertools import chunked
 
+from DataLogging import LogEntry
 from Defines import (
     COMMAND_KEY,
     CONFIG,
@@ -28,8 +29,6 @@ from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
 from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
 from Utility import SendMessage
-
-from .DataLogging import LogEntry, LogUserData
 
 COMMANDS: dict[str, Callable] = {}
 STATS = [
@@ -189,14 +188,15 @@ async def Blame(message: Message) -> None:
         message (Message): triggering message
 
     """
+    author = str(message.author).split("#", maxsplit=1)[0]
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
             newEntry = copy.deepcopy(entry)
-            newEntry.Bonus = f"Blame from {message.User}"
+            newEntry.Bonus = f"Blame from {author}"
             newEntry.EntryStatus = Status.Blamed
-            if message.User == entry.User:
+            if author == entry.User:
                 await SendMessage(
                     "You added this one, double blame for you!!",
                     message,
@@ -220,11 +220,12 @@ async def Praise(message: Message) -> None:
         message (Message): triggering message
 
     """
+    author = str(message.author).split("#", maxsplit=1)[0]
     for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
-            if message.User == entry.User:
+            if author == entry.User:
                 await SendMessage(
                     "You added this one, no praise for you!",
                     message,
@@ -237,7 +238,7 @@ async def Praise(message: Message) -> None:
                     reply=True,
                 )
                 newEntry = copy.deepcopy(entry)
-                newEntry.Bonus = f"Praise from {message.User}"
+                newEntry.Bonus = f"Praise from {author}"
                 newEntry.EntryStatus = Status.Praised
                 await LogEntry(newEntry, False)
 
