@@ -7,11 +7,14 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+import pandas as pd
 from discord import File, Message
+from more_itertools import chunked
 
 from Defines import (
     COMMAND_KEY,
     CONFIG,
+    MASTER_GENRES,
     TEMP_USER_DATA_FILE,
     USER_DATA_FILE,
     GetMemory,
@@ -48,7 +51,8 @@ async def Graph(message: Message) -> None:
     created = await Graphs(message)
     files = [File(x) for x in created]
     if files:
-        await message.reply(files=files)
+        for c in chunked(files, 10):
+            await message.reply(files=c)
     else:
         await message.reply("No graphs were created, did you specify a valid type?")
 
@@ -137,6 +141,9 @@ async def Data(message: Message) -> None:
     if "personal" in message.content:
         df = await PrepDataFrame()
         valid = df.loc[df["result"] == Status.Added]
+        if isinstance(valid, pd.Series):
+            await SendMessage("Not enough data to generate report", message, reply=True)
+            return
         report: str = "Play%\tGenre\tArtist\tPop\tScore\tUser\n"
         userData = await PrepUserData(valid)
         for uname in userData["names"]:
@@ -161,6 +168,9 @@ async def Data(message: Message) -> None:
         await SendMessage("Generating the user data file", message, True)
         df = await PrepDataFrame()
         valid = df.loc[df["result"] == Status.Added]
+        if isinstance(valid, pd.Series):
+            await SendMessage("Not enough data to generate report", message, reply=True)
+            return
         await PrepUserData(valid, True)
         await message.reply(file=File(TEMP_USER_DATA_FILE))
     else:
@@ -190,13 +200,13 @@ async def Validate(message: Message) -> None:
         message (Message): triggering message
 
     """
-    missing: list[tuple[str, str]] = []
+    missing: list[tuple[str, str, str]] = []
     for idStr, m in (await GetMemory())["Cache"]["artists"].items():
-        if not m["genres"]:
-            missing.append((m["name"], idStr))
+        if not any(x in "".join(m["genres"]) for x in MASTER_GENRES):
+            missing.append((m["name"], idStr, m["genres"]))
     await SendMessage(
         f"{len(missing)} Artists Missing Genres:\n - "
-        + "\n - ".join(f"{x[0]} ({x[1]})" for x in missing),
+        + "\n - ".join(f"{x[0]} ({x[1]}) {x[2]}" for x in missing),
         message,
     )
 
@@ -249,6 +259,7 @@ async def CheckArtist(message: Message) -> None:
 
 
 async def AddGenre(message: Message) -> None:
+    """Add genre(s) to an artist from their ID."""
     mem = message.content
     save = " save" in message.content
     if save:
@@ -258,7 +269,8 @@ async def AddGenre(message: Message) -> None:
         info = (await GetArtistInfo(artistID))["artist"]
         info["genres"] = sorted(
             set(
-                info["genres"] + [x.strip() for x in genres.split(",")],
+                (info["genres"] if isinstance(info["genres"], list) else [])
+                + [x.strip() for x in genres.split(",")],
             ),
         )
 

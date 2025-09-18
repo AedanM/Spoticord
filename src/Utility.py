@@ -1,18 +1,17 @@
 import re
-from itertools import islice
+
+from discord import Message
+from more_itertools import chunked
 
 from Defines import CONFIG, GetMemory, GetUserData, SaveMemory
 
 
-def Chunk(toBeSplit, chunkSize) -> list:
-    toBeSplit = iter(toBeSplit)
-    return list(iter(lambda: tuple(islice(toBeSplit, chunkSize)), ()))
-
-
-async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool = False) -> None:
+async def SendMessage(
+    output: str, contextObj: Message, reply: bool = False, useChannel: bool = False
+) -> None:
     memory = await GetMemory()
     channelId = contextObj.channel.id if not useChannel else contextObj.id
-    for message in Chunk(output, 2000):
+    for message in chunked(output, 2000):
         message = "".join(message)
         if useChannel:
             await contextObj.send(message)
@@ -24,16 +23,18 @@ async def SendMessage(output, contextObj, reply: bool = False, useChannel: bool 
         await SaveMemory()
 
 
-async def DadMode(message) -> None:
+async def DadMode(message: Message) -> None:
     for dadCommand in CONFIG["DadCommands"]:
         if subject := re.search(dadCommand["regex"], message.content.lower()):
             subject = subject.group(1)
             await SendMessage(
-                dadCommand["response"].replace("{subject}", subject), message, reply=True
+                dadCommand["response"].replace("{subject}", subject),
+                message,
+                reply=True,
             )
 
 
-async def NotifyPlaylistLength(response) -> None:
+async def NotifyPlaylistLength(response: Message) -> None:
     playlistLen = len([x for x in await GetUserData() if x.EntryStatus.WasSuccessful])
     if playlistLen % CONFIG["UpdateInterval"] == 0:
         await SendMessage(f"This was song #{playlistLen} 🙌", response, reply=True)
