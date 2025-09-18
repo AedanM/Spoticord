@@ -197,8 +197,16 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
 async def Graphs(message: Message) -> list[Path]:
     """Generate graphs based on user data and message content."""
     full = await PrepDataFrame()
-    valid = full.loc[full["result"] == Status.Added]
-    valid = valid.reset_index(drop=True)
+    if "result" not in full.columns:
+        raise ValueError("'result' column not found in user data.")
+
+    def WasAdded(r: str) -> bool:
+        try:
+            return Status(r).WasSuccessful
+        except Exception:
+            return False
+
+    valid = full.loc[full["result"].apply(WasAdded)]
 
     if isinstance(valid, pd.Series):
         return []
