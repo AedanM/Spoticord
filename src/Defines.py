@@ -30,6 +30,8 @@ class Status(StrEnum):
     RegexFail = "Failed Regex"
     WrongMarket = "Wrong Market"
     ForceAdd = "Forcefully Added"
+    Praised = "Praised"
+    Blamed = "Blamed"
 
     @property
     def WasSuccessful(self) -> bool:
@@ -48,6 +50,7 @@ class UserDataEntry:
     TrackName: str
     URI: str
     User: str
+    Bonus: str
 
     @classmethod
     def FromList(cls, dataFields: list[str]) -> "UserDataEntry":
@@ -71,6 +74,7 @@ class UserDataEntry:
             TrackName=dataFields[4],
             URI=dataFields[6],
             User=dataFields[1],
+            Bonus=dataFields[7] if len(dataFields) > 7 else "",
         )
 
     @classmethod
@@ -228,7 +232,7 @@ async def LoadMemory() -> None:
             MEMORY["Cache"] = load(fp)
 
 
-def AppendUserData(data: str) -> None:
+def AppendUserData(data: UserDataEntry) -> None:
     """Write to last line of user data log.
 
     Parameters
@@ -236,10 +240,8 @@ def AppendUserData(data: str) -> None:
     data : str
         input data from logging
     """
-    # todo : change types
-    userEntry = UserDataEntry.FromString(data)
     with USER_DATA_FILE.open(mode="a", encoding="utf-8") as fp:
-        fp.write("\n" + userEntry.OutputString)
+        fp.write("\n" + data.OutputString)
 
 
 MASTER_GENRES = [

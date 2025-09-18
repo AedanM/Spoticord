@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from Defines import SEPARATOR, UNAME_STAND_IN, AppendUserData, LoadUserData, Status
+from Defines import UNAME_STAND_IN, AppendUserData, LoadUserData, Status, UserDataEntry
 
 
 async def LogUserData(
@@ -10,6 +10,7 @@ async def LogUserData(
     user: str,
     status: Status,
     isTesting: bool,
+    bonus: str = "",
 ) -> None:
     """Write user data to a file.
 
@@ -19,14 +20,31 @@ async def LogUserData(
         status (Status): Summary of attempt to add track
         isTesting (bool): is this in a production channel?
     """
-    message: str = SEPARATOR.join(
-        [str(datetime.now()), user, status] + [f'"{x}"' for x in trackInfo],
+    entry = UserDataEntry(
+        TimeAdded=datetime.now(),
+        User=user,
+        EntryStatus=status,
+        TrackId=trackInfo[0],
+        TrackName=trackInfo[1],
+        Artist=trackInfo[2],
+        URI=trackInfo[3],
+        Bonus=bonus,
     )
     if isTesting and status != Status.ForceAdd:
-        print(message)
+        print(entry)
     else:
-        AppendUserData(message)
+        AppendUserData(entry)
         await LoadUserData()
+
+
+async def LogEntry(
+    entry: UserDataEntry,
+    isTesting: bool,
+    bonus: str = "",
+) -> None:
+    """Write user data to a file."""
+    AppendUserData(entry)
+    await LoadUserData()
 
 
 def GetResponse(result: Status, username: str, isTesting: bool) -> str:

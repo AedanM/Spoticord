@@ -1,3 +1,5 @@
+"""Graphing functions for playlist data."""
+
 import inspect
 import re
 from collections.abc import Callable
@@ -27,6 +29,7 @@ GRAPHS: list[str] = [
 
 
 async def GraphGenres(valid: pd.DataFrame) -> Any:
+    """Generate a pie chart of genre distribution."""
     genreFreq = dict(
         zip([*MASTER_GENRES, "Other"], [0] * len([*MASTER_GENRES, "Other"]), strict=True),
     )
@@ -45,18 +48,16 @@ async def GraphGenres(valid: pd.DataFrame) -> Any:
         values=list(genreFreq.values()),
         title="Genre Distribution",
     )
-    print(genreFreq)
     fig.update_layout(
-        legend=dict(
-            yanchor="top",
-            y=0,
-            font=dict(size=8),
-        ),
+        legend={
+            "font": {"size": 8},
+        },
     )
     return fig
 
 
-async def GraphTimeline(valid: pd.DataFrame):
+async def GraphTimeline(valid: pd.DataFrame) -> Any:
+    """Generate a timeline graph of when tracks were released."""
     release_date = []
     release: date
     for row in valid.itertuples():
@@ -79,13 +80,17 @@ async def GraphTimeline(valid: pd.DataFrame):
 
 
 def UserTrackNum(frame: pd.DataFrame, track: str) -> int:
+    """Get the number of tracks a user has added before this one."""
     trackRow = frame.loc[frame["track"] == track]
     trackIDx = trackRow.index[0]
-    prevEntrys = frame.loc[(frame["user"] == trackRow["user"][trackIDx]) & (frame.index < trackIDx)]
-    return len(prevEntrys.index)
+    prevEntries = frame.loc[
+        (frame["user"] == trackRow["user"][trackIDx]) & (frame.index < trackIDx)
+    ]
+    return len(prevEntries.index)
 
 
 async def PopularityRanking(track: str, useFollowers: bool = False) -> float:
+    """Calculate a popularity ranking for a track."""
     try:
         trackInfo = await GetFullInfo(track)
         val = (
@@ -93,22 +98,25 @@ async def PopularityRanking(track: str, useFollowers: bool = False) -> float:
             if not useFollowers
             else trackInfo["artist"]["followers"]["total"]
         )
-    except:
+    except (KeyError, TypeError):
         val = -1.0
     return val
 
 
 def AvgPopularityAtRow(frame: pd.DataFrame, row: int, useFollowers: bool = False) -> float:
+    """Average popularity of all tracks up to and including this one."""
     trackRow = frame.iloc[row]
     trackIdx = trackRow.name
-    prevEntrys = frame.loc[frame.index <= trackIdx]
+    prevEntries = frame.loc[frame.index <= trackIdx]
     return round(
-        sum(prevEntrys["popularity" if not useFollowers else "followers"]) / len(prevEntrys.index),
+        sum(prevEntries["popularity" if not useFollowers else "followers"])
+        / len(prevEntries.index),
         2,
     )
 
 
 async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
+    """Prepare the main dataframe with all calculated fields."""
     df = pd.read_csv(USER_DATA_FILE)
 
     df["popularity"] = [await PopularityRanking(x) for x in df["track"] if x]
@@ -123,10 +131,12 @@ async def PrepDataFrame(saveFile: bool = False) -> pd.DataFrame:
 
 
 def GetUniqueRatio(data: pd.DataFrame) -> float:
+    """Get the ratio of unique items in a list."""
     return len(set(data)) / len(data) if len(data) > 1 else 0.0
 
 
 async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame:
+    """Prepare the user-specific dataframe with all calculated fields."""
     users = pd.DataFrame({"names": list(set(df["user"]))})
     users["artists"] = [df[df["user"] == user]["artist"] for user in users["names"]]
     users["count"] = [len(df[df["user"] == user]) for user in users["names"]]
@@ -163,6 +173,7 @@ async def PrepUserData(df: pd.DataFrame, saveFile: bool = False) -> pd.DataFrame
 
 
 async def Graphs(message: Message) -> list[Path]:
+    """Generate graphs based on user data and message content."""
     full = await PrepDataFrame()
     valid = full.loc[full["result"] == Status.Added]
     if isinstance(valid, pd.Series):

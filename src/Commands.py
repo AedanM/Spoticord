@@ -1,5 +1,6 @@
 """Commands for spotify bot."""
 
+import copy
 import os
 import re
 import subprocess
@@ -27,6 +28,8 @@ from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
 from SpotifyAccess import GetAllTracks, GetArtistInfo
 from Stats import UserStats
 from Utility import SendMessage
+
+from .DataLogging import LogEntry, LogUserData
 
 COMMANDS: dict[str, Callable] = {}
 STATS = [
@@ -190,7 +193,53 @@ async def Blame(message: Message) -> None:
         for entry in [
             x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
         ]:
-            await SendMessage(f"{entry}", message, reply=True)
+            newEntry = copy.deepcopy(entry)
+            newEntry.Bonus = f"Blame from {message.User}"
+            newEntry.EntryStatus = Status.Blamed
+            if message.User == entry.User:
+                await SendMessage(
+                    "You added this one, double blame for you!!",
+                    message,
+                    reply=True,
+                )
+                await LogEntry(newEntry, False)
+                await LogEntry(newEntry, False)
+            else:
+                await SendMessage(
+                    f"You can blame {entry.User} for {entry.TrackInfo}",
+                    message,
+                    reply=True,
+                )
+                await LogEntry(newEntry, False)
+
+
+async def Praise(message: Message) -> None:
+    """Determine who added a song.
+
+    Args:
+        message (Message): triggering message
+
+    """
+    for trackID in re.findall(CONFIG["Regex"]["track"], message.content):
+        for entry in [
+            x for x in await GetUserData() if x.EntryStatus.WasSuccessful and x.TrackId == trackID
+        ]:
+            if message.User == entry.User:
+                await SendMessage(
+                    "You added this one, no praise for you!",
+                    message,
+                    reply=True,
+                )
+            else:
+                await SendMessage(
+                    f"Big Ups to {entry.User} for {entry.TrackInfo}",
+                    message,
+                    reply=True,
+                )
+                newEntry = copy.deepcopy(entry)
+                newEntry.Bonus = f"Praise from {message.User}"
+                newEntry.EntryStatus = Status.Praised
+                await LogEntry(newEntry, False)
 
 
 async def Validate(message: Message) -> None:
@@ -283,6 +332,7 @@ async def AddGenre(message: Message) -> None:
 
 COMMANDS = {
     "blame": Blame,
+    "praise": Praise,
     "checkArtist": CheckArtist,
     "addGenre": AddGenre,
     "validate": Validate,
