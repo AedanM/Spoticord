@@ -2,6 +2,7 @@
 
 import math
 import re
+from sqlite3 import Time
 from statistics import quantiles
 
 import pandas as pd
@@ -85,6 +86,12 @@ async def UserStats(message: Message) -> None:
             "quantiles" in message.content,
         ),
         "artist": lambda: GetArtistCount(data),
+        "users": lambda: GetUserInfo(
+            data,
+            message.content,
+            "genres" in message.content,
+            "artists" in message.content,
+        ),
     }
 
     for keyword, handler in handlers.items():
@@ -103,6 +110,39 @@ async def GetUnlabeled() -> tuple[str, list]:
     mem = await GetMemory()
     artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
     return "Missing Genres:", [x["name"] for x in artists]
+
+
+async def GetUserInfo(
+    data: list[UserDataEntry],
+    message: str,
+    useGenres: bool,
+    useArtists: bool,
+) -> tuple[str, list]:
+    """Get user info."""
+    out = []
+    users = [x for x in message.split() if x.startswith("user:")]
+    if not users:
+        return "User Info:", []
+    user = users[0].split("user:")[-1]
+    data = sorted(
+        [x for x in data if x.EntryStatus.WasSuccessful and x.User == user],
+        key=lambda x: x.TimeAdded,
+    )
+    if useGenres:
+        genres = []
+        for d in data:
+            info = await GetFullInfo(d.TrackId)
+            genres.extend(info["artist"]["genres"])
+        genreFreq = {x: genres.count(x) for x in set(genres)}
+        out = sorted(genreFreq.items(), key=lambda x: x[1])
+    elif useArtists:
+        artists = [x.Artist for x in data]
+        artistFreq = {x: artists.count(x) for x in set(artists)}
+        out = sorted(artistFreq.items(), key=lambda x: x[1])
+    else:
+        out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in data]
+
+    return "User Info:", out
 
 
 async def GetOnTheList() -> tuple[str, list]:
