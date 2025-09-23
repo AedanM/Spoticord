@@ -124,23 +124,23 @@ async def GetUserInfo(
     if not users:
         return "User Info:", []
     user = users[0].split("user:")[-1]
-    data = sorted(
+    userData = sorted(
         [x for x in data if x.EntryStatus.WasSuccessful and x.User == user],
         key=lambda x: x.TimeAdded,
     )
     if useGenres:
         genres = []
-        for d in data:
+        for d in userData:
             info = await GetFullInfo(d.TrackId)
             genres.extend(info["artist"]["genres"])
         genreFreq = {x: genres.count(x) for x in set(genres)}
         out = sorted(genreFreq.items(), key=lambda x: x[1])
     elif useArtists:
-        artists = [x.Artist for x in data]
+        artists = [x.Artist for x in userData]
         artistFreq = {x: artists.count(x) for x in set(artists)}
         out = sorted(artistFreq.items(), key=lambda x: x[1])
     else:
-        out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in data]
+        out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in userData]
 
     return "User Info:", out
 
