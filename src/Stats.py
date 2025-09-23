@@ -93,9 +93,15 @@ async def UserStats(message: Message) -> None:
             "artists" in message.content,
         ),
     }
-
+    if message.content.split()[1] not in handlers:
+        await SendMessage(
+            "Valid keywords are: " + ", ".join([f"`{x}`" for x in handlers]),
+            message,
+            reply=True,
+        )
+        return
     for keyword, handler in handlers.items():
-        if keyword in message.content:
+        if keyword in message.content.split()[1]:
             outStr, stats = await handler()
             break
 
@@ -128,6 +134,7 @@ async def GetUserInfo(
         [x for x in data if x.EntryStatus.WasSuccessful and x.User == user],
         key=lambda x: x.TimeAdded,
     )
+    print(user, userData)
     if useGenres:
         genres = []
         for d in userData:
