@@ -149,7 +149,7 @@ async def GetUserInfo(
         artistFreq = {x: artists.count(x) for x in set(artists)}
         out = sorted(artistFreq.items(), key=lambda x: x[1])
     elif getGenre:
-        if genre := re.search(r"genre=([^ ]+)", message):
+        if genre := re.search(r"genre=([^\n]+)", message):
             genre = genre.group(1)
             tracks = [
                 x for x in userData if genre in (await GetFullInfo(x.TrackId))["artist"]["genres"]
