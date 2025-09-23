@@ -91,6 +91,7 @@ async def UserStats(message: Message) -> None:
             message.content,
             "genres" in message.content,
             "artists" in message.content,
+            re.search(r"genre=[^ ]+", message.content) is not None,
         ),
     }
     if message.content.split()[1] not in handlers:
@@ -123,6 +124,7 @@ async def GetUserInfo(
     message: str,
     useGenres: bool,
     useArtists: bool,
+    getGenre: bool,
 ) -> tuple[str, list]:
     """Get user info."""
     out = []
@@ -146,6 +148,13 @@ async def GetUserInfo(
         artists = [x.Artist for x in userData]
         artistFreq = {x: artists.count(x) for x in set(artists)}
         out = sorted(artistFreq.items(), key=lambda x: x[1])
+    elif getGenre:
+        if genre := re.search(r"genre=([^ ]+)", message):
+            genre = genre.group(1)
+            tracks = [
+                x for x in userData if genre in (await GetFullInfo(x.TrackId))["artist"]["genres"]
+            ]
+            out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in tracks]
     else:
         out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in userData]
 
