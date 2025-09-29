@@ -107,13 +107,12 @@ async def MessageHandler(message: Message) -> None:
             )
             if status == Status.Repeat:
                 username = trackInfo[-1]
-            if status.WasSuccessful:
-                await NotifyPlaylistLength(message)
             if response := GetResponse(status, username, isTesting):
                 await SendMessage(response, message, reply=True)
 
             await LogUserData(trackInfo, username, status, isTesting)
-
+            if status.WasSuccessful:
+                await NotifyPlaylistLength(message)
             logged = True
 
         if not logged and "open.spotify" in message.content:
