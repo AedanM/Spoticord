@@ -269,9 +269,12 @@ async def Validate(message: Message) -> None:
         if len([x for x in data if x.TrackId == track["track"]["id"]]) < 1:
             await SendMessage(
                 (
-                    f"Error, no matching data for {track['track']['name']} "
-                    f"{track['track']['artists'][0]['name']} "
-                    f"({track['track']['id']})"
+                    "Error, no matching data for "
+                    f"({track['added_at']}),"
+                    f"({track['track']['id']}),"
+                    f"{track['track']['name']}, "
+                    f"{track['track']['artists'][0]['name']}, "
+                    f"{track['track']['uri']}, "
                 ),
                 message,
             )
