@@ -296,16 +296,20 @@ async def Graphs(message: Message) -> list[Path]:
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
+    found: list[Path] = []
     figs: list = []
     for graph, func in graphs.items():
         if graph in message.content or " all" in message.content:
-            if inspect.iscoroutinefunction(func):
-                figs.append(await func(valid))
+            dst = USER_DATA_FILE.parent / "graphs" / f"{graph}_{valid.count()}.png"
+            if dst.exists():
+                found.append(dst)
             else:
-                figs.append(func())
-            figs[-1].update_layout(xaxis={"categoryorder": "total ascending"})
-            print(f"generated {graph}")
-            made.append(USER_DATA_FILE.parent / "graphs" / f"{graph}.png")
+                _ = [x.unlink() for x in (USER_DATA_FILE.parent / "graphs").glob(f"{graph}_*")]
+                if inspect.iscoroutinefunction(func):
+                    figs.append(await func(valid))
+                else:
+                    figs.append(func())
+                figs[-1].update_layout(xaxis={"categoryorder": "total ascending"})
+                made.append(dst)
     pio.write_images(fig=figs, file=made, width=960, height=540, scale=2)
-    return made
-    return made
+    return found + made
