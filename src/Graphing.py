@@ -300,7 +300,9 @@ async def Graphs(message: Message) -> list[Path]:
     figs: list = []
     for graph, func in graphs.items():
         if graph in message.content or " all" in message.content:
-            dst = USER_DATA_FILE.parent / "graphs" / f"{graph}_{valid.count()}.png"
+            dst = (
+                USER_DATA_FILE.parent / "graphs" / f"{graph}_{valid.shape[0]}x{valid.shape[1]}.png"
+            )
             if dst.exists():
                 found.append(dst)
             else:
