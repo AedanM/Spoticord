@@ -42,5 +42,19 @@ async def NotifyPlaylistLength(response: Message) -> None:
     return
 
 
+async def NotifyUserLength(response: Message) -> None:
+    userLen = len(
+        [
+            x
+            for x in await GetUserData()
+            if x.EntryStatus.WasSuccessful and x.User == str(response.author)
+        ],
+    )
+    if userLen % CONFIG["UpdateInterval"] == 0:
+        await SendMessage(f"This was {response.author}'s #{userLen} 🙌", response, reply=True)
+
+    return
+
+
 async def TimeToSec(time) -> int:
     return (time.hour * 60 + time.minute) * 60 + time.second

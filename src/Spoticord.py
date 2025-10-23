@@ -12,7 +12,7 @@ from Commands import HandleCommands
 from DataLogging import GetResponse, LogUserData
 from Defines import COMMAND_KEY, CONFIG, DISCORD_CLIENT, GetMemory, SaveMemory, Status
 from SpotifyAccess import AddToPlaylist, ForceTrack
-from Utility import DadMode, NotifyPlaylistLength, SendMessage, TimeToSec
+from Utility import DadMode, NotifyPlaylistLength, NotifyUserLength, SendMessage, TimeToSec
 
 
 @tasks.loop(seconds=300)
@@ -113,6 +113,7 @@ async def MessageHandler(message: Message) -> None:
             await LogUserData(trackInfo, username, status, isTesting)
             if status.WasSuccessful:
                 await NotifyPlaylistLength(message)
+                await NotifyUserLength(message)
             logged = True
 
         if not logged and "open.spotify" in message.content:
