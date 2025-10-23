@@ -252,8 +252,11 @@ async def Validate(message: Message) -> None:
     """
     missing: list[tuple[str, str, str]] = []
     for idStr, m in (await GetMemory())["Cache"]["artists"].items():
-        if not any(x in "".join(m["genres"]) for x in MASTER_GENRES):
-            missing.append((m["name"], idStr, m["genres"]))
+        if isinstance(m, list):
+            print(m, idStr)
+        else:
+            if not any(x in "".join(m["genres"]) for x in MASTER_GENRES):
+                missing.append((m["name"], idStr, m["genres"]))
     await SendMessage(
         f"{len(missing)} Artists Missing Genres:\n - "
         + "\n - ".join(f"{x[0]} ({x[1]}) {x[2]}" for x in missing),
