@@ -37,10 +37,11 @@ async def GraphDurations(valid: pd.DataFrame) -> Any:
         durations.append(duration_ms / 60000)  # Convert to minutes
     valid = valid.copy()
     valid["duration_minutes"] = durations
-    fig = px.histogram(
+    fig = px.box(
         valid,
         x="duration_minutes",
-        nbins=30,
+        orientation="h",
+        points = "all",
         title="Track Duration Distribution",
         labels={"duration_minutes": "Duration (minutes)"},
     )
