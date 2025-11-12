@@ -27,6 +27,7 @@ GRAPHS: list[str] = [
     "genres",
 ]
 
+
 async def GraphDurations(valid: pd.DataFrame) -> Any:
     """Generate a histogram of track durations."""
     durations = []
@@ -45,6 +46,7 @@ async def GraphDurations(valid: pd.DataFrame) -> Any:
     )
     fig.update_layout(bargap=0.1)
     return fig
+
 
 async def GraphGenres(valid: pd.DataFrame) -> Any:
     """Generate a pie chart of genre distribution."""
@@ -311,6 +313,7 @@ async def Graphs(message: Message) -> list[Path]:
         ),
         "genres": GraphGenres,
         "timeline": GraphTimeline,
+        "duration": GraphDurations,
     }
     (USER_DATA_FILE.parent / "graphs").mkdir(exist_ok=True)
     made: list[Path] = []
