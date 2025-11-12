@@ -27,6 +27,24 @@ GRAPHS: list[str] = [
     "genres",
 ]
 
+async def GraphDurations(valid: pd.DataFrame) -> Any:
+    """Generate a histogram of track durations."""
+    durations = []
+    for track in valid["track"]:
+        info = await GetFullInfo(str(track))
+        duration_ms = info["track"].get("duration_ms", 0)
+        durations.append(duration_ms / 60000)  # Convert to minutes
+    valid = valid.copy()
+    valid["duration_minutes"] = durations
+    fig = px.histogram(
+        valid,
+        x="duration_minutes",
+        nbins=30,
+        title="Track Duration Distribution",
+        labels={"duration_minutes": "Duration (minutes)"},
+    )
+    fig.update_layout(bargap=0.1)
+    return fig
 
 async def GraphGenres(valid: pd.DataFrame) -> Any:
     """Generate a pie chart of genre distribution."""
