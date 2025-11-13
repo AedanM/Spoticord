@@ -2,8 +2,8 @@
 
 import math
 import re
-from sqlite3 import Time
 from statistics import quantiles
+from typing import Any
 
 import pandas as pd
 from discord import Message
@@ -16,38 +16,127 @@ from Utility import SendMessage
 STAT_COUNT: int = 10
 
 
-async def FilterData(message: Message, data: list[tuple]) -> list:
+async def FilterData(message: Message, results: dict) -> dict:
     """Perform common filtering of data."""
-    out = data
+    out: dict = results["Data"]
     statCount = STAT_COUNT
-    if match := re.search(r"\s[Tt](\d+)", message.content):
-        statCount = int(match.group(1))
-    if "reverse" not in message.content:
-        out = list(reversed(out))
+    if countMatch := re.search(r"\s[Tt](\d+)", message.content):
+        statCount = int(countMatch.group(1))
+    if userMatch := re.search(r"\suser:([^ ]+)", message.content):
+        username = userMatch.group(1)
+        out = {entry: value for entry, value in out if entry.User == username}
+    if genreMatch := re.search(r"\sgenre:\"?([^\"]+)\"?", message.content):
+        genre = genreMatch.group(1)
+        trimmed = out.copy()
+        for entry in out:
+            info = await GetFullInfo(entry.TrackId)
+            if genre in info["artist"]["genres"]:
+                pass
+            else:
+                del trimmed[entry]
+        out = trimmed
     if statCount < len(out):
         out = out[:statCount]
-    return out
+    sortedTuples = sorted(out.items(), key=lambda x: x[1], reverse="reverse" not in message.content)
+    results["Filtered"] = sortedTuples
+    return results
 
 
-async def GetReleaseDate(data: list[UserDataEntry]) -> tuple[str, list[tuple]]:
-    """Get data for when songs were released.
+async def GetReleaseDate(data: list[UserDataEntry]) -> dict:
+    """Get data for when songs were released."""
 
-    Parameters
-    ----------
-    data : list[UserDataEntry]
-        input data
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        return f"{data} -> {entry.TrackInfo} added by {entry.User}"
 
-    Returns
-    -------
-    tuple[str, list[tuple]]
-        result str and data
-    """
-    output: list[tuple] = []
-    for row in [x for x in data if x.EntryStatus.WasSuccessful]:
-        info = await GetFullInfo(row.TrackId)
-        output.append((f"{row.User} - {row.TrackInfo}", info["track"]["album"]["release_date"]))
+    output = {}
+    for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
+        info = await GetFullInfo(entry.TrackId)
+        releaseDate = info["track"]["album"]["release_date"]
+        output[entry] = releaseDate
 
-    return "Release Date:", sorted(output, key=lambda x: x[1])
+    return {
+        "Title": "Release Dates",
+        "Formatter": Formatter,
+        "Data": output,
+    }
+
+
+async def GetDuration(data: list[UserDataEntry]) -> dict:
+    """Get data for how the longest/shortest song."""
+    timed: dict[UserDataEntry, int] = {}
+    for song in [x for x in data if x.EntryStatus.WasSuccessful]:
+        info = await GetFullInfo(song.TrackId)
+        timed[song] = info["track"]["duration_ms"]
+
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        timeStr = f"{math.floor(data / 60000):02d}:{round((data % 60000) / 1000):02d}"
+        return f"{timeStr} - {entry.TrackInfo} added by {entry.User}"
+
+    return {
+        "Title": "Track Duration (min)",
+        "Formatter": Formatter,
+        "Data": timed,
+    }
+
+
+async def GetEntryPopularity(data: list[UserDataEntry]) -> dict:
+    """Get popularity for entries."""
+    output = {}
+    for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
+        info = await GetFullInfo(entry.TrackId)
+        output[entry] = info["track"]["popularity"]
+
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        return f"{data} -> {entry.TrackInfo} added by {entry.User}"
+
+    return {
+        "Title": "Entry Popularity",
+        "Formatter": Formatter,
+        "Data": output,
+    }
+
+
+async def GetRecent(data: list[UserDataEntry]) -> dict:
+    """Get most recent additions."""
+    output = {}
+    for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
+        output[entry] = entry.TimeAdded
+
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        timeStr = data.strftime("%Y-%m-%d %H:%M")
+        return f"{timeStr} - {entry.TrackInfo} added by {entry.User}"
+
+    return {
+        "Title": "Recent Additions",
+        "Formatter": Formatter,
+        "Data": output,
+    }
+
+
+# region SpecialCases
+async def GetUnlabeled() -> dict:
+    """Get non genre-ed artists."""
+    mem = await GetMemory()
+    artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
+    return {
+        "Title": "Missing Genres",
+        "Data": dict.fromkeys(artists, None),
+        "Formatter": lambda x: x["name"],
+    }
+
+
+async def GetOnTheList() -> dict:
+    """Return the current list."""
+    mem = await GetMemory()
+    artistInfo = mem["Cache"]["artists"]
+    out = []
+    for artistID, rating in CONFIG["Vibes"].items():
+        artist = artistInfo.get(artistID, None)
+        out.append((artist["name"] if artist else artistID, float(rating)))
+    return {"Title": "On The List", "Formatter": lambda x: x[0], "Data": out}
+
+
+# endregion
 
 
 async def UserStats(message: Message) -> None:
@@ -57,42 +146,14 @@ async def UserStats(message: Message) -> None:
         message (Message): triggering message
     """
     data: list[UserDataEntry] = await GetUserData()
-    stats: list = []
-    username: str = str(message.author).split("#", maxsplit=1)[0]
+    result: dict = {}
     outStr: str = ""
 
     handlers: dict = {
-        "onTheList": lambda: GetOnTheList(),
-        "duration": lambda: GetDuration(data),
-        "poster": lambda: GetPosterCount(data),
-        "genre": lambda: GetGenreCount(data),
-        "unlabeled": lambda: GetUnlabeled(),
+        "popularity": lambda: GetEntryPopularity(data),
         "release": lambda: GetReleaseDate(data),
-        "popularity": lambda: GetPopularityRanking(
-            data,
-            "follower" in message.content,
-            "track" in message.content,
-        ),
-        "mainstream personal": lambda: GetPersonalMainstream(
-            data,
-            username,
-            "follower" in message.content,
-            "track" in message.content,
-        ),
-        "mainstream": lambda: GetMainstreamRating(
-            data,
-            "follower" in message.content,
-            "median" in message.content,
-            "quantiles" in message.content,
-        ),
-        "artist": lambda: GetArtistCount(data),
-        "users": lambda: GetUserInfo(
-            data,
-            message.content,
-            "genres" in message.content,
-            "artists" in message.content,
-            re.search(r"genre=[^ ]+", message.content) is not None,
-        ),
+        "duration": lambda: GetDuration(data),
+        "recent": lambda: GetRecent(data),
     }
     if message.content.split()[1] not in handlers:
         await SendMessage(
@@ -103,20 +164,78 @@ async def UserStats(message: Message) -> None:
         return
     for keyword, handler in handlers.items():
         if keyword in message.content.split()[1]:
-            outStr, stats = await handler()
+            result: dict = await handler()
             break
-
-    stats = await FilterData(message, stats)
-    outStr = f"{outStr}\n{'\n'.join([f'{x[0]} -> {x[1]}' for x in stats])}"
+    result = await FilterData(message, result)
+    outStr = (
+        f"{result['Title']}:\n"
+        f"{'\n'.join([result['Formatter'](entry, data) for entry, data in result['Filtered']])}"
+    )
     if outStr:
         await SendMessage(outStr, message, reply=True)
 
 
-async def GetUnlabeled() -> tuple[str, list]:
-    """Get non genre-ed artists."""
-    mem = await GetMemory()
-    artists = [x for x in mem["Cache"]["artists"].values() if x["genres"] == []]
-    return "Missing Genres:", [x["name"] for x in artists]
+"""# "onTheList": lambda: GetOnTheList(),
+        # "duration": lambda: GetDuration(data),
+        # "poster": lambda: GetPosterCount(data),
+        # "genre": lambda: GetGenreCount(data),
+        # "unlabeled": lambda: GetUnlabeled(),
+        # "release": lambda: GetReleaseDate(data),
+        # "popularity": lambda: GetPopularityRanking(
+        #     data,"onTheList": lambda: GetOnTheList(),
+        # "duration": lambda: GetDuration(data),
+        # "poster": lambda: GetPosterCount(data),
+        # "genre": lambda: GetGenreCount(data),
+        # "unlabeled": lambda: GetUnlabeled(),
+        # "release": lambda: GetReleaseDate(data),
+        # "popularity": lambda: GetPopularityRanking(
+        #     data,
+        #     "follower" in message.content,
+        #     "track" in message.content,
+        # ),
+        # "mainstream personal": lambda: GetPersonalMainstream(
+        #     data,
+        #     username,
+        #     "follower" in message.content,
+        #     "track" in message.content,
+        # ),
+        # "mainstream": lambda: GetMainstreamRating(
+        #     data,
+        #     "follower" in message.content,
+        #     "median" in message.content,
+        #     "quantiles" in message.content,
+        # ),
+        # "artist": lambda: GetArtistCount(data),
+        # "users": lambda: GetUserInfo(
+        #     data,
+        #     message.content,
+        #     "genres" in message.content,
+        #     "artists" in message.content,
+        #     re.search(r"genre=[^ ]+", message.content) is not None,
+        # ),
+        #     "follower" in message.content,
+        #     "track" in message.content,
+        # ),
+        # "mainstream personal": lambda: GetPersonalMainstream(
+        #     data,
+        #     username,
+        #     "follower" in message.content,
+        #     "track" in message.content,
+        # ),
+        # "mainstream": lambda: GetMainstreamRating(
+        #     data,
+        #     "follower" in message.content,
+        #     "median" in message.content,
+        #     "quantiles" in message.content,
+        # ),
+        # "artist": lambda: GetArtistCount(data),
+        # "users": lambda: GetUserInfo(
+        #     data,
+        #     message.content,
+        #     "genres" in message.content,
+        #     "artists" in message.content,
+        #     re.search(r"genre=[^ ]+", message.content) is not None,
+        # ),"""
 
 
 async def GetUserInfo(
@@ -159,17 +278,6 @@ async def GetUserInfo(
         out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in userData]
 
     return "User Info:", out
-
-
-async def GetOnTheList() -> tuple[str, list]:
-    """Return the current list."""
-    mem = await GetMemory()
-    artistInfo = mem["Cache"]["artists"]
-    out = []
-    for artistID, rating in CONFIG["Vibes"].items():
-        artist = artistInfo.get(artistID, None)
-        out.append((artist["name"] if artist else artistID, float(rating)))
-    return "On The List:", sorted(out, key=lambda x: x[1])
 
 
 async def GetPopularityRanking(
@@ -379,32 +487,3 @@ async def GetPosterCount(data: list[UserDataEntry]) -> tuple[str, list]:
     }
     addFreq = sorted(addFreq.items(), key=lambda x: x[1])
     return "Song Posters:", addFreq
-
-
-async def GetDuration(data: list[UserDataEntry]) -> tuple[str, list]:
-    """Get data for how the longest/shortest song.
-
-    Parameters
-    ----------
-    data : list[UserDataEntry]
-        entry data
-    useReverse: bool
-        flip data
-
-    Returns
-    -------
-    str
-        result str
-    """
-    timed: dict[UserDataEntry, int] = {}
-    for song in [x for x in data if x.EntryStatus.WasSuccessful]:
-        info = await GetFullInfo(song.TrackId)
-        timed[song] = info["track"]["duration_ms"]
-    sortedTimes: list[tuple[UserDataEntry, int]] = sorted(
-        timed.items(),
-        key=lambda x: x[1],
-    )
-    return "Track Duration (min):", [
-        [f"{math.floor(x[1] / 60000):02d}:{round((x[1] % 60000) / 1000):02d}", x[0].TrackInfo]
-        for x in sortedTimes
-    ]
