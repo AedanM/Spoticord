@@ -2,6 +2,7 @@
 
 import copy
 import os
+import random
 import re
 import subprocess
 import sys
@@ -24,10 +25,11 @@ from Defines import (
     SaveConfig,
     SaveMemory,
     Status,
+    UserDataEntry,
 )
 from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
 from SpotifyAccess import GetAllTracks, GetArtistInfo
-from Stats import UserStats
+from Stats import FilterData, UserStats
 from Utility import SendMessage
 
 COMMANDS: dict[str, Callable] = {}
@@ -335,6 +337,24 @@ async def AddGenre(message: Message) -> None:
             await SaveMemory()
     else:
         await SendMessage("Failed regex", message, reply=True)
+
+
+async def Playlist(message: Message) -> None:
+    """Generate a random sample of the playlist."""
+    data: list[UserDataEntry] = await GetUserData()
+    valid = [x for x in data if x.EntryStatus == Status.Added]
+    random.shuffle(valid)
+    inputData: dict = {
+        "Data": dict.fromkeys(valid, None),
+        "Title": "Random Sample from Playlist",
+        "Formatter": lambda x: f"{x.TrackInfo}",
+    }
+    results = await FilterData(message, inputData)
+    outStr = str(inputData["Title"]) + ":\n"
+    outStr += "\n".join(
+        [f" - {await inputData['Formatter'](entry)}" for entry in results["Filtered"]],
+    )
+    await SendMessage(outStr, message)
 
 
 COMMANDS = {
