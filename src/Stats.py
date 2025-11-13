@@ -24,7 +24,7 @@ async def FilterData(message: Message, results: dict) -> dict:
         statCount = int(countMatch.group(1))
     if userMatch := re.search(r"\suser:([^ ]+)", message.content):
         username = userMatch.group(1)
-        out = {entry: value for entry, value in out if entry.User == username}
+        out = {entry: value for entry, value in out.items() if entry.User == username}
     if genreMatch := re.search(r"\sgenre:\"?([^\"]+)\"?", message.content):
         genre = genreMatch.group(1)
         trimmed = out.copy()
@@ -35,9 +35,9 @@ async def FilterData(message: Message, results: dict) -> dict:
             else:
                 del trimmed[entry]
         out = trimmed
-    if statCount < len(out):
-        out = out[:statCount]
     sortedTuples = sorted(out.items(), key=lambda x: x[1], reverse="reverse" not in message.content)
+    if statCount < len(sortedTuples):
+        sortedTuples = sortedTuples[:statCount]
     results["Filtered"] = sortedTuples
     return results
 
@@ -169,7 +169,7 @@ async def UserStats(message: Message) -> None:
     result = await FilterData(message, result)
     outStr = (
         f"{result['Title']}:\n"
-        f"{'\n'.join([result['Formatter'](entry, data) for entry, data in result['Filtered']])}"
+        f"{'\n'.join([await result['Formatter'](entry, data) for entry, data in result['Filtered']])}"
     )
     if outStr:
         await SendMessage(outStr, message, reply=True)
