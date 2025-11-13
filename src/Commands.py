@@ -8,6 +8,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from discord import File, Message
@@ -343,10 +344,12 @@ async def Playlist(message: Message) -> None:
     """Generate a random sample of the playlist."""
     data: list[UserDataEntry] = await GetUserData()
     valid = [x for x in data if x.EntryStatus == Status.Added]
-    async def Formatter(x,_y):
-        return x.TrackInfo
+
+    async def Formatter(x: UserDataEntry, _y: Any) -> str:
+        return x.TrackInfo + f" (Added by {x.User})"
+
     inputData: dict = {
-        "Data": dict([(entry, random.random()) for entry in valid]), 
+        "Data": {entry: random.random() for entry in valid},
         "Title": "Random Sample from Playlist",
         "Formatter": Formatter,
     }

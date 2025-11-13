@@ -15,11 +15,13 @@ from Utility import SendMessage
 
 STAT_COUNT: int = 10
 
+FILTERS: list = ["user:", "genre:", r"T\d+", "reverse"]
+
 
 async def FilterData(message: Message, results: dict) -> dict:
     """Perform common filtering of data."""
     out: dict = results["Data"]
-    statCount = STAT_COUNT
+    statCount: int = STAT_COUNT
     if countMatch := re.search(r"\s[Tt](\d+)", message.content):
         statCount = int(countMatch.group(1))
     if userMatch := re.search(r"\suser:([^ ]+)", message.content):
@@ -27,9 +29,9 @@ async def FilterData(message: Message, results: dict) -> dict:
         out = {entry: value for entry, value in out.items() if entry.User == username}
     if genreMatch := re.search(r"\sgenre:\"?([^\"]+)\"?", message.content):
         genre = genreMatch.group(1)
-        trimmed = out.copy()
+        trimmed: dict[UserDataEntry, Any] = out.copy()
         for entry in out:
-            info = await GetFullInfo(entry.TrackId)
+            info: dict = await GetFullInfo(entry.TrackId)
             if genre in info["artist"]["genres"]:
                 pass
             else:
@@ -157,7 +159,10 @@ async def UserStats(message: Message) -> None:
     }
     if message.content.split()[1] not in handlers:
         await SendMessage(
-            "Valid keywords are: " + ", ".join([f"`{x}`" for x in handlers]),
+            "Valid keywords are: "
+            + ", ".join([f"`{x}`" for x in handlers])
+            + "\n Valid filters are: "
+            + ", ".join([f"`{x}`" for x in FILTERS]),
             message,
             reply=True,
         )
@@ -167,9 +172,8 @@ async def UserStats(message: Message) -> None:
             result: dict = await handler()
             break
     result = await FilterData(message, result)
-    outStr = (
-        f"{result['Title']}:\n"
-        f"{'\n'.join([await result['Formatter'](entry, data) for entry, data in result['Filtered']])}"
+    outStr = f"{result['Title']}:\n" + "\n".join(
+        [await result["Formatter"](entry, data) for entry, data in result["Filtered"]],
     )
     if outStr:
         await SendMessage(outStr, message, reply=True)
