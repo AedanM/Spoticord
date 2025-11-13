@@ -40,12 +40,15 @@ async def GraphDurations(valid: pd.DataFrame) -> Any:
     fig = px.box(
         valid,
         x="duration_minutes",
+        y ="user",
         orientation="h",
         points = "all",
+        color="user",
         title="Track Duration Distribution",
         labels={"duration_minutes": "Duration (minutes)"},
+        color_discrete_map=CONFIG["UserColors"],
     )
-    fig.update_layout(bargap=0.1)
+    fig.update_layout(boxmode="group")
     return fig
 
 
