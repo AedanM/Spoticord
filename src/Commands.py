@@ -343,16 +343,17 @@ async def Playlist(message: Message) -> None:
     """Generate a random sample of the playlist."""
     data: list[UserDataEntry] = await GetUserData()
     valid = [x for x in data if x.EntryStatus == Status.Added]
-    random.shuffle(valid)
+    async def Formatter(x,_y):
+        return x.TrackInfo
     inputData: dict = {
-        "Data": dict.fromkeys(valid, None),
+        "Data": dict([(entry, random.random()) for entry in valid]), 
         "Title": "Random Sample from Playlist",
-        "Formatter": lambda x: f"{x.TrackInfo}",
+        "Formatter": Formatter,
     }
     results = await FilterData(message, inputData)
     outStr = str(inputData["Title"]) + ":\n"
     outStr += "\n".join(
-        [f" - {await inputData['Formatter'](entry)}" for entry in results["Filtered"]],
+        [f" - {await inputData['Formatter'](entry, rng)}" for entry, rng in results["Filtered"]],
     )
     await SendMessage(outStr, message)
 
@@ -371,6 +372,7 @@ COMMANDS = {
     "refresh": Refresh,
     "stats": UserStats,
     "update": Update,
+    "playlist": Playlist,
 }
 
 
