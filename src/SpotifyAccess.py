@@ -50,6 +50,7 @@ async def CreateUserPlaylist(user: str, commandDesc: str, tracks: list[str]) -> 
         memory["UserPlaylists"][user] = playlistId
         await SaveMemory()
         SPOTIFY_CLIENT.playlist_add_items(playlistId, tracks)
+    return playlistId
 
 
 async def IsARepeat(trackId: str) -> tuple[bool, str]:

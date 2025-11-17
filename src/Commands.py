@@ -356,12 +356,18 @@ async def Playlist(message: Message) -> None:
         "Data": {entry: random.random() for entry in valid},
         "Title": "Random Sample from Playlist",
         "Formatter": Formatter,
+        "Unique": False,
     }
-    await CreateUserPlaylist(author, message.content, [x.TrackId for x in inputData["Data"]])
     results = await FilterData(message, inputData)
+    playlistId = await CreateUserPlaylist(
+        author, message.content, [x.TrackId for x in results["Data"]]
+    )
     outStr = str(inputData["Title"]) + ":\n"
     outStr += "\n".join(
         [f" - {await inputData['Formatter'](entry, rng)}" for entry, rng in results["Filtered"]],
+    )
+    outStr += (
+        f'\nFind your playlist <a href="https://open.spotify.com/playlist/{playlistId}">here</a>'
     )
     await SendMessage(outStr, message)
 
