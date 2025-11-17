@@ -32,7 +32,7 @@ async def FilterData(message: Message, results: dict) -> dict:
         trimmed: dict[UserDataEntry, Any] = out.copy()
         for entry in out:
             info: dict = await GetFullInfo(entry.TrackId)
-            if genre in info["artist"]["genres"]:
+            if genre in " ".join(info["artist"]["genres"]):
                 pass
             else:
                 del trimmed[entry]
@@ -316,6 +316,7 @@ async def GetUserInfo(
         out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in userData]
 
     return "User Info:", out
+
 
 async def GetGenreCount(
     data: list[UserDataEntry],
