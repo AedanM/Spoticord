@@ -94,6 +94,8 @@ async def MessageHandler(message: Message) -> None:
 
     if username != "Spoticord":
         await DadMode(message)
+    else:
+        return
 
     if message.content and message.content[0] == COMMAND_KEY and (await HandleCommands(message)):
         return

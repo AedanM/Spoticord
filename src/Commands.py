@@ -347,10 +347,7 @@ async def Playlist(message: Message) -> None:
     author = str(message.author).split("#", maxsplit=1)[0]
 
     async def Formatter(x: UserDataEntry, _y: Any) -> str:
-        return (
-            rf"[{x.TrackInfo}](<https:\/\/open.spotify.com\/track\/{x.TrackId}>)"
-            f" (Added by {x.User})"
-        )
+        return f"[{x.TrackInfo}](<https://open.spotify.com/track/{x.TrackId}>) (Added by {x.User})"
 
     inputData: dict = {
         "Data": {entry: random.random() for entry in valid},
