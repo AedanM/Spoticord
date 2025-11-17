@@ -43,7 +43,7 @@ async def CreateUserPlaylist(user: str, commandDesc: str, tracks: list[str]) -> 
     else:
         response = SPOTIFY_CLIENT.user_playlist_create(
             user="atomicbrit",
-            name=f"{user}'s Custom Playlist",
+            name=f"{user}'s Spoticord Selection",
             description=commandDesc,
         )
         playlistId = response["id"]

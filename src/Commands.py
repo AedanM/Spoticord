@@ -359,13 +359,13 @@ async def Playlist(message: Message) -> None:
     playlistId = await CreateUserPlaylist(
         author,
         message.content,
-        [x.TrackId for x in results["Data"]],
+        [x[0].TrackId for x in results["Filtered"]],      
     )
     outStr = str(inputData["Title"]) + ":\n"
     outStr += "\n".join(
         [f" - {await inputData['Formatter'](entry, rng)}" for entry, rng in results["Filtered"]],
     )
-    outStr += f"\nFind your playlist [here](<https://open.spotify.com/playlist/{playlistId})"
+    outStr += f"\n\nFind your playlist [here](<https://open.spotify.com/playlist/{playlistId})"
     await SendMessage(outStr, message)
 
 
