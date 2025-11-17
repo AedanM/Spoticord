@@ -348,7 +348,7 @@ async def Playlist(message: Message) -> None:
 
     async def Formatter(x: UserDataEntry, _y: Any) -> str:
         return (
-            rf'<a href="https:\/\/open.spotify.com\/track\/{x.TrackId}">{x.TrackInfo}</a>'
+            rf"[{x.TrackInfo}](<https:\/\/open.spotify.com\/track\/{x.TrackId}>)"
             f" (Added by {x.User})"
         )
 
@@ -360,15 +360,15 @@ async def Playlist(message: Message) -> None:
     }
     results = await FilterData(message, inputData)
     playlistId = await CreateUserPlaylist(
-        author, message.content, [x.TrackId for x in results["Data"]]
+        author,
+        message.content,
+        [x.TrackId for x in results["Data"]],
     )
     outStr = str(inputData["Title"]) + ":\n"
     outStr += "\n".join(
         [f" - {await inputData['Formatter'](entry, rng)}" for entry, rng in results["Filtered"]],
     )
-    outStr += (
-        f'\nFind your playlist <a href="https://open.spotify.com/playlist/{playlistId}">here</a>'
-    )
+    outStr += f"\nFind your playlist [here](<https://open.spotify.com/playlist/{playlistId})"
     await SendMessage(outStr, message)
 
 
