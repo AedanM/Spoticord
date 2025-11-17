@@ -30,6 +30,28 @@ def GetAllTracks(playlistId: str) -> list[dict]:
     return tracks
 
 
+async def CreateUserPlaylist(user: str, commandDesc: str, tracks: list[str]) -> None:
+    """Create or update a custom user playlist."""
+    memory = await GetMemory()
+    if "UserPlaylists" not in memory:
+        memory["UserPlaylists"] = {}
+    playlistId = memory["UserPlaylists"].get(user, "None")
+    tracks = tracks[:100] if len(tracks) > 100 else tracks
+    if playlistId != "None":
+        SPOTIFY_CLIENT.playlist_replace_items(playlistId, tracks)
+        SPOTIFY_CLIENT.playlist_change_details(playlistId, description=commandDesc)
+    else:
+        response = SPOTIFY_CLIENT.user_playlist_create(
+            user="atomicbrit",
+            name=f"{user}'s Custom Playlist",
+            description=commandDesc,
+        )
+        playlistId = response["id"]
+        memory["UserPlaylists"][user] = playlistId
+        await SaveMemory()
+        SPOTIFY_CLIENT.playlist_add_items(playlistId, tracks)
+
+
 async def IsARepeat(trackId: str) -> tuple[bool, str]:
     """Check if track already added.
 

@@ -29,7 +29,7 @@ from Defines import (
     UserDataEntry,
 )
 from Graphing import GRAPHS, Graphs, PrepDataFrame, PrepUserData
-from SpotifyAccess import GetAllTracks, GetArtistInfo
+from SpotifyAccess import CreateUserPlaylist, GetAllTracks, GetArtistInfo
 from Stats import FilterData, UserStats
 from Utility import SendMessage
 
@@ -344,15 +344,20 @@ async def Playlist(message: Message) -> None:
     """Generate a random sample of the playlist."""
     data: list[UserDataEntry] = await GetUserData()
     valid = [x for x in data if x.EntryStatus == Status.Added]
+    author = str(message.author).split("#", maxsplit=1)[0]
 
     async def Formatter(x: UserDataEntry, _y: Any) -> str:
-        return x.TrackInfo + f" (Added by {x.User})"
+        return (
+            rf'<a href="https:\/\/open.spotify.com\/track\/{x.TrackId}">{x.TrackInfo}</a>'
+            f" (Added by {x.User})"
+        )
 
     inputData: dict = {
         "Data": {entry: random.random() for entry in valid},
         "Title": "Random Sample from Playlist",
         "Formatter": Formatter,
     }
+    await CreateUserPlaylist(author, message.content, [x.TrackId for x in inputData["Data"]])
     results = await FilterData(message, inputData)
     outStr = str(inputData["Title"]) + ":\n"
     outStr += "\n".join(

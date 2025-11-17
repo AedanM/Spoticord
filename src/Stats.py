@@ -37,9 +37,19 @@ async def FilterData(message: Message, results: dict) -> dict:
             else:
                 del trimmed[entry]
         out = trimmed
+
     sortedTuples = sorted(out.items(), key=lambda x: x[1], reverse="reverse" not in message.content)
+    if results["Unique"]:
+        seen = set()
+        uniqueTuples = []
+        for entry, value in sortedTuples:
+            if value not in seen:
+                uniqueTuples.append((entry, value))
+                seen.add(value)
+        sortedTuples = uniqueTuples
     if statCount < len(sortedTuples):
         sortedTuples = sortedTuples[:statCount]
+
     results["Filtered"] = sortedTuples
     return results
 
@@ -60,6 +70,7 @@ async def GetReleaseDate(data: list[UserDataEntry]) -> dict:
         "Title": "Release Dates",
         "Formatter": Formatter,
         "Data": output,
+        "Unique": False,
     }
 
 
@@ -78,6 +89,7 @@ async def GetDuration(data: list[UserDataEntry]) -> dict:
         "Title": "Track Duration (min)",
         "Formatter": Formatter,
         "Data": timed,
+        "Unique": False,
     }
 
 
@@ -95,6 +107,7 @@ async def GetEntryPopularity(data: list[UserDataEntry]) -> dict:
         "Title": "Entry Popularity",
         "Formatter": Formatter,
         "Data": output,
+        "Unique": False,
     }
 
 
@@ -112,6 +125,25 @@ async def GetRecent(data: list[UserDataEntry]) -> dict:
         "Title": "Recent Additions",
         "Formatter": Formatter,
         "Data": output,
+        "Unique": False,
+    }
+
+
+async def GetPopularityArtists(data: list[UserDataEntry]) -> dict:
+    """Get most popular artists added."""
+    output = {}
+    for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
+        info = await GetFullInfo(entry.TrackId)
+        output[entry] = (info["artist"]["popularity"], entry.Artist)
+
+    async def Formatter(_entry: UserDataEntry, data: Any) -> str:
+        return f"{data[1]} -> {data[0]}"
+
+    return {
+        "Title": "Artist Popularity",
+        "Formatter": Formatter,
+        "Data": output,
+        "Unique": False,
     }
 
 
@@ -156,6 +188,8 @@ async def UserStats(message: Message) -> None:
         "release": lambda: GetReleaseDate(data),
         "duration": lambda: GetDuration(data),
         "recent": lambda: GetRecent(data),
+        "popularity_artists": lambda: GetPopularityArtists(data),
+        # "contrib": lambda: GetContributors(data),
     }
     if message.content.split()[1] not in handlers:
         await SendMessage(
@@ -282,48 +316,6 @@ async def GetUserInfo(
         out = [(x.TimeAdded.strftime("%Y-%m-%d %H:%M"), x.TrackInfo) for x in userData]
 
     return "User Info:", out
-
-
-async def GetPopularityRanking(
-    data: list[UserDataEntry],
-    useFollowers: bool,
-    useTracks: bool,
-) -> tuple[str, list]:
-    """Get data for who most popular artists/tracks are.
-
-    Parameters
-    ----------
-    data : list[UserDataEntry]
-        entry data
-    useReverse: bool
-        flip data
-    useFollowers: bool
-        use follower data instead
-    useTracks: bool
-        use track data instead
-
-    Returns
-    -------
-    str
-        result str
-    """
-    popularity = {}
-    for track in [x for x in data if x.EntryStatus.WasSuccessful]:
-        trackInfo = await GetFullInfo(track.TrackId)
-        if trackInfo["artist"]["name"] not in popularity:
-            if not useTracks:
-                popularity[trackInfo["artist"]["name"]] = (
-                    trackInfo["artist"]["popularity"]
-                    if not useFollowers
-                    else trackInfo["artist"]["followers"]["total"]
-                )
-            else:
-                popularity[track.TrackInfo] = (0.75 * trackInfo["track"]["popularity"]) + (
-                    0.25 * trackInfo["artist"]["popularity"]
-                )
-
-    return "Popularity Rankings:", sorted(popularity.items(), key=lambda x: x[1])
-
 
 async def GetGenreCount(
     data: list[UserDataEntry],
