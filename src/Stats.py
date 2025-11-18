@@ -41,7 +41,13 @@ async def FilterData(message: Message, results: dict) -> dict:
                 del trimmed[entry]
         out = trimmed
 
-    sortedTuples = sorted(out.items(), key=lambda x: x[1], reverse="reverse" not in message.content)
+    TrimResults(results, out, statCount, reverse="reverse" not in message.content)
+    return results
+
+
+def TrimResults(results: dict, out: dict, statCount: int, reverse: bool) -> None:
+    """Sort, set unique values or trim length."""
+    sortedTuples = sorted(out.items(), key=lambda x: x[1], reverse=reverse)
     if results["Unique"]:
         seen = set()
         uniqueTuples = []
@@ -54,7 +60,6 @@ async def FilterData(message: Message, results: dict) -> dict:
         sortedTuples = sortedTuples[:statCount]
 
     results["Filtered"] = sortedTuples
-    return results
 
 
 async def GetReleaseDate(data: list[UserDataEntry]) -> dict:
@@ -150,6 +155,24 @@ async def GetPopularityArtists(data: list[UserDataEntry]) -> dict:
     }
 
 
+async def GetContributors(data: list[UserDataEntry]) -> dict:
+    """Get number of tracks added."""
+    output = {}
+    for user in {x.User for x in data if x.EntryStatus.WasSuccessful}:
+        userTracks = [x for x in data if user == x.User and x.EntryStatus.WasSuccessful]
+        output[userTracks[0]] = len(userTracks)
+
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        return f"{entry.User}->{data} tracks"
+
+    return {
+        "Title": "User Contributions",
+        "Formatter": Formatter,
+        "Data": output,
+        "Unique": False,
+    }
+
+
 # region SpecialCases
 async def GetUnlabeled() -> dict:
     """Get non genre-ed artists."""
@@ -192,7 +215,7 @@ async def UserStats(message: Message) -> None:
         "duration": lambda: GetDuration(data),
         "recent": lambda: GetRecent(data),
         "popularity_artists": lambda: GetPopularityArtists(data),
-        # "contrib": lambda: GetContributors(data),
+        "contrib": lambda: GetContributors(data),
     }
     if message.content.split()[1] not in handlers:
         await SendMessage(
