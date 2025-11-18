@@ -137,15 +137,36 @@ async def GetRecent(data: list[UserDataEntry]) -> dict:
     }
 
 
-async def GetPopularityArtists(data: list[UserDataEntry]) -> dict:
-    """Get most popular artists added."""
+async def GetPopularityTracks(data: list[UserDataEntry]) -> dict:
+    """Get most popular tracks added."""
     output = {}
     for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
         info = await GetFullInfo(entry.TrackId)
-        output[entry] = (info["artist"]["popularity"], entry.Artist)
+        output[entry] = info["artist"]["popularity"]
 
-    async def Formatter(_entry: UserDataEntry, data: Any) -> str:
-        return f"{data[1]} -> {data[0]}"
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        return f"{data} -> {entry.TrackInfo}"
+
+    return {
+        "Title": "Track Popularity",
+        "Formatter": Formatter,
+        "Data": output,
+        "Unique": False,
+    }
+
+
+async def GetPopularityArtists(data: list[UserDataEntry]) -> dict:
+    """Get most popular artists added."""
+    output = {}
+    for artist in {x.Artist for x in data if x.EntryStatus.WasSuccessful}:
+        artistTrack: list[UserDataEntry] = [
+            x for x in data if x.EntryStatus.WasSuccessful and x.Artist == artist
+        ]
+        info: dict = await GetFullInfo(artistTrack[0].TrackId)
+        output[artistTrack[0]] = info["artist"]["popularity"]
+
+    async def Formatter(entry: UserDataEntry, data: Any) -> str:
+        return f"{data} -> {entry.Artist}"
 
     return {
         "Title": "Artist Popularity",
@@ -163,7 +184,7 @@ async def GetContributors(data: list[UserDataEntry]) -> dict:
         output[userTracks[0]] = len(userTracks)
 
     async def Formatter(entry: UserDataEntry, data: Any) -> str:
-        return f"{entry.User}->{data} tracks"
+        return f"{data:03d} tracks -> {entry.User}"
 
     return {
         "Title": "User Contributions",
@@ -214,6 +235,7 @@ async def UserStats(message: Message) -> None:
         "release": lambda: GetReleaseDate(data),
         "duration": lambda: GetDuration(data),
         "recent": lambda: GetRecent(data),
+        "popularity_tracks": lambda: GetPopularityTracks(data),
         "popularity_artists": lambda: GetPopularityArtists(data),
         "contrib": lambda: GetContributors(data),
     }
