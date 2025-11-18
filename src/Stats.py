@@ -101,24 +101,6 @@ async def GetDuration(data: list[UserDataEntry]) -> dict:
     }
 
 
-async def GetEntryPopularity(data: list[UserDataEntry]) -> dict:
-    """Get popularity for entries."""
-    output = {}
-    for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
-        info = await GetFullInfo(entry.TrackId)
-        output[entry] = info["track"]["popularity"]
-
-    async def Formatter(entry: UserDataEntry, data: Any) -> str:
-        return f"{data} -> {entry.TrackInfo} added by {entry.User}"
-
-    return {
-        "Title": "Entry Popularity",
-        "Formatter": Formatter,
-        "Data": output,
-        "Unique": False,
-    }
-
-
 async def GetRecent(data: list[UserDataEntry]) -> dict:
     """Get most recent additions."""
     output = {}
@@ -231,7 +213,6 @@ async def UserStats(message: Message) -> None:
     outStr: str = ""
 
     handlers: dict = {
-        "popularity": lambda: GetEntryPopularity(data),
         "release": lambda: GetReleaseDate(data),
         "duration": lambda: GetDuration(data),
         "recent": lambda: GetRecent(data),
