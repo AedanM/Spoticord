@@ -124,7 +124,7 @@ async def GetPopularityTracks(data: list[UserDataEntry]) -> dict:
     output = {}
     for entry in [x for x in data if x.EntryStatus.WasSuccessful]:
         info = await GetFullInfo(entry.TrackId)
-        output[entry] = info["artist"]["popularity"]
+        output[entry] = info["track"]["popularity"]
 
     async def Formatter(entry: UserDataEntry, data: Any) -> str:
         return f"{data} -> {entry.TrackInfo}"
