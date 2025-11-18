@@ -27,6 +27,9 @@ async def FilterData(message: Message, results: dict) -> dict:
     if userMatch := re.search(r"\suser:([^ ]+)", message.content):
         username = userMatch.group(1)
         out = {entry: value for entry, value in out.items() if entry.User == username}
+    if artistMatch := re.search(r"\artist:([^ ]+)", message.content):
+        username = artistMatch.group(1)
+        out = {entry: value for entry, value in out.items() if entry.Artist == username}
     if genreMatch := re.search(r"\sgenre:\"?([^\"]+)\"?", message.content):
         genre = genreMatch.group(1)
         trimmed: dict[UserDataEntry, Any] = out.copy()
