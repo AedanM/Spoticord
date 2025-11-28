@@ -24,9 +24,9 @@ async def Poke() -> None:
     if memory["PokingTime"].date() != today.date():
         memory["Poked"] = False
         seconds = 0
-        while seconds < now:
-            print(CONFIG["PokeTimes"][dt.datetime.now().weekday()])
-            startSecs, endSecs = random.choice(CONFIG["PokeTimes"][dt.datetime.now().weekday()])
+        pokeTimes = CONFIG["PokeTimes"][dt.datetime.now().weekday()]
+        random.shuffle(pokeTimes)
+        for startSecs, endSecs in pokeTimes:
             seconds = random.randint(startSecs, endSecs)
             newTime = dt.time(
                 hour=math.floor(seconds / 3600),
@@ -34,6 +34,10 @@ async def Poke() -> None:
                 second=seconds % 60,
             )
             memory["PokingTime"] = dt.datetime.combine(today.date(), newTime)
+            if seconds < now:
+                break
+        if seconds == 0:
+            memory["Poked"] = True
         await SaveMemory()
     elif not memory["Poked"] and await TimeToSec(memory["PokingTime"].time()) < now:
         for channel in CONFIG["PokeChannels"]:
@@ -72,7 +76,7 @@ async def SpecialTimes() -> None:
 @DISCORD_CLIENT.listen("on_ready")
 async def ReAnnounce() -> None:
     """On first boot, say you're back."""
-    if channel := DISCORD_CLIENT.get_channel(int(CONFIG["Channel Maps"]["testing-ground"])):
+    if channel := DISCORD_CLIENT.get_channel(CONFIG["Announce"]):
         await SendMessage("I'm back 😎", channel, useChannel=True)
     else:
         print("Can't find channel for announce")
