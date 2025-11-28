@@ -15,7 +15,7 @@ from Utility import SendMessage
 
 STAT_COUNT: int = 10
 
-FILTERS: list = ["user:", "genre:", r"T\d+", "reverse"]
+FILTERS: list = ["user:", "artist:", "genre:", r"T\d+", "reverse"]
 
 
 async def FilterData(message: Message, results: dict) -> dict:
@@ -127,7 +127,7 @@ async def GetPopularityTracks(data: list[UserDataEntry]) -> dict:
         output[entry] = info["track"]["popularity"]
 
     async def Formatter(entry: UserDataEntry, data: Any) -> str:
-        return f"{data} -> {entry.TrackInfo}"
+        return f"{data} -> {entry.TrackInfo} (added by {entry.User})"
 
     return {
         "Title": "Track Popularity",
