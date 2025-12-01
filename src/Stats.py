@@ -32,7 +32,7 @@ async def FilterData(message: Message, results: dict) -> dict:
             releaseDate = info["track"]["album"]["release_date"]
             if str(year) not in releaseDate:
                 del trimmed[entry]
-        trimmed = out
+        out = trimmed        
     if userMatch := re.search(r"\suser:([^ ]+)", message.content):
         username = userMatch.group(1)
         out = {entry: value for entry, value in out.items() if entry.User == username}
