@@ -107,6 +107,7 @@ class UserDataEntry:
         """
         return ",".join(
             [
+                self.PlaylistID,
                 str(self.TimeAdded),
                 self.User,
                 str(self.EntryStatus),
