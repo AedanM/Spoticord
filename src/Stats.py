@@ -24,6 +24,15 @@ async def FilterData(message: Message, results: dict) -> dict:
     statCount: int = STAT_COUNT
     if countMatch := re.search(r"\s[Tt](\d+)", message.content):
         statCount = int(countMatch.group(1))
+    if yearMatch := re.search(r"\syear:(\d+)", message.content):
+        year = int(yearMatch.group(1))
+        trimmed: dict[UserDataEntry, Any] = out.copy()
+        for entry in out:
+            info = await GetFullInfo(entry.TrackId)
+            releaseDate = info["track"]["album"]["release_date"]
+            if (year) not in releaseDate:
+                del trimmed[entry]
+        trimmed = out
     if userMatch := re.search(r"\suser:([^ ]+)", message.content):
         username = userMatch.group(1)
         out = {entry: value for entry, value in out.items() if entry.User == username}
