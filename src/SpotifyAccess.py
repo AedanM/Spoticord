@@ -53,7 +53,7 @@ async def CreateUserPlaylist(user: str, commandDesc: str, tracks: list[str]) -> 
     return playlistId
 
 
-async def IsARepeat(trackId: str) -> tuple[bool, str]:
+async def IsARepeat(trackId: str, playlistID: str) -> tuple[bool, str]:
     """Check if track already added.
 
     Parameters
@@ -67,7 +67,9 @@ async def IsARepeat(trackId: str) -> tuple[bool, str]:
         true if is a repeat
     """
     matches = [
-        x for x in await GetUserData() if x.TrackId == trackId and x.EntryStatus.WasSuccessful
+        x
+        for x in await GetUserData()
+        if playlistID == x.PlaylistID and x.TrackId == trackId and x.EntryStatus.WasSuccessful
     ]
     return (len(matches) > 0), "" if len(matches) == 0 else matches[0].User
 
@@ -110,7 +112,7 @@ async def AddToPlaylist(trackId: str, playlistId: str, isTesting: bool) -> tuple
     """
     result = Status.Default
     extra = ""
-    repeat, prevUser = await IsARepeat(trackId)
+    repeat, prevUser = await IsARepeat(trackId, playlistId)
     if repeat:
         result = Status.Repeat
         extra = prevUser
