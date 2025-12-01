@@ -209,6 +209,8 @@ async def UserStats(message: Message) -> None:
         message (Message): triggering message
     """
     data: list[UserDataEntry] = await GetUserData()
+    playlistID = CONFIG["Channel Maps"].get(message.channel.name, None)
+    data = [x for x in data if x.PlaylistID == playlistID]
     result: dict = {}
     outStr: str = ""
 

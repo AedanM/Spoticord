@@ -40,9 +40,9 @@ async def GraphDurations(valid: pd.DataFrame) -> Any:
     fig = px.box(
         valid,
         x="duration_minutes",
-        y ="user",
+        y="user",
         orientation="h",
-        points = "all",
+        points="all",
         color="user",
         title="Track Duration Distribution",
         labels={"duration_minutes": "Duration (minutes)"},
@@ -230,7 +230,9 @@ async def Graphs(message: Message) -> list[Path]:
         except Exception:
             return False
 
+    playlistID = CONFIG["Channel Maps"].get(message.channel.name, None)
     valid = full.loc[full["result"].apply(WasAdded)]
+    valid = full.loc[full["playlistID"] == playlistID]
 
     if isinstance(valid, pd.Series):
         return []

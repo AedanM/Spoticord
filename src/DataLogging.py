@@ -9,6 +9,7 @@ async def LogUserData(
     trackInfo: tuple[str, str, str, str],
     user: str,
     status: Status,
+    playlistID: str,
     isTesting: bool,
     bonus: str = "",
 ) -> None:
@@ -21,6 +22,7 @@ async def LogUserData(
         isTesting (bool): is this in a production channel?
     """
     entry = UserDataEntry(
+        PlaylistID=playlistID,
         TimeAdded=datetime.now(),
         User=user,
         EntryStatus=status,

@@ -117,7 +117,7 @@ async def MessageHandler(message: Message) -> None:
             if response := GetResponse(status, username, isTesting):
                 await SendMessage(response, message, reply=True)
 
-            await LogUserData(trackInfo, username, status, isTesting)
+            await LogUserData(trackInfo, username, status, playlistID, isTesting)
             if status.WasSuccessful:
                 await NotifyPlaylistLength(message)
                 await NotifyUserLength(message)
@@ -131,6 +131,7 @@ async def MessageHandler(message: Message) -> None:
                 (message.content.replace("\n", "\\n"), "", "", ""),
                 username,
                 Status.RegexFail,
+                playlistID,
                 isTesting,
             )
 

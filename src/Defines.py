@@ -51,6 +51,7 @@ class UserDataEntry:
     URI: str
     User: str
     Bonus: str
+    PlaylistID: str
 
     @classmethod
     def FromList(cls, dataFields: list[str]) -> "UserDataEntry":
@@ -67,14 +68,15 @@ class UserDataEntry:
             instance of class
         """
         return cls(
-            Artist=dataFields[5],
-            EntryStatus=Status(dataFields[2]),
-            TimeAdded=datetime.datetime.fromisoformat(dataFields[0]),
-            TrackId=dataFields[3],
-            TrackName=dataFields[4],
-            URI=dataFields[6],
-            User=dataFields[1],
-            Bonus=dataFields[7] if len(dataFields) > 7 else "",
+            PlaylistID=dataFields[0],
+            Artist=dataFields[6],
+            EntryStatus=Status(dataFields[3]),
+            TimeAdded=datetime.datetime.fromisoformat(dataFields[1]),
+            TrackId=dataFields[4],
+            TrackName=dataFields[5],
+            URI=dataFields[7],
+            User=dataFields[2],
+            Bonus=dataFields[8] if len(dataFields) > 8 else "",
         )
 
     @classmethod
